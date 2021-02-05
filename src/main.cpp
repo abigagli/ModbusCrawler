@@ -70,10 +70,13 @@ int single_read (std::string const &prog_name, int argc, char *argv[])
 
     options::address = std::stoi (argv[0]);
 
-    options::regsize = argv[1][0] - '0';
+    std::string regspec = argv[1];
 
-    options::word_endianess = argv[1][1] == 'l' ? modbus::word_endianess::little : modbus::word_endianess::big;
+    if (regspec.size() != 2 || (regspec[1] != 'l' && regspec[1] != 'b'))
+        return usage(prog_name, -1, "invalid regsize specification: " + regspec);
 
+    options::regsize = regspec[0] - '0';
+    options::word_endianess = regspec[1] == 'l' ? modbus::word_endianess::little : modbus::word_endianess::big;
 
     if (options::regsize > 4)
         return usage(prog_name, -1, "regsize must be <= 4");
