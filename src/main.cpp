@@ -101,8 +101,10 @@ int main(int argc, char *argv[])
         options::regsize != 4)
         return usage(prog_name, -1, "regsize allowed values: {1 | 2 | 4}");
 
-    auto serial_line = modbus::SerialLine(options::device, options::line_config);
-    modbus::RTUContext ctx(options::server_id, serial_line, options::answering_time, options::verbose);
+    modbus::RTUContext ctx(options::server_id,
+                            modbus::SerialLine(options::device, options::line_config),
+                           options::answering_time,
+                           options::verbose);
 
     // if (options::address >= 40000)
     //     options::address -= 40000;
