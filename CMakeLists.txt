@@ -33,7 +33,7 @@ add_custom_command (OUTPUT ${CMAKE_SOURCE_DIR}/compile_commands.json
     DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
     )
 
-target_link_libraries (${APPLICATION_TARGET_NAME} PRIVATE MODBUS::static)
+target_link_libraries (${APPLICATION_TARGET_NAME} PRIVATE MODBUS::static nlohmann_json::nlohmann_json)
 
 target_compile_options (${APPLICATION_TARGET_NAME} PRIVATE $<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 

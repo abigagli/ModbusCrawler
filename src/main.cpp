@@ -1,4 +1,5 @@
 #include <modbus.h>
+#include <nlohmann/json.hpp>
 
 #include <iostream>
 #include <map>
@@ -6,6 +7,7 @@
 
 
 using namespace std::string_literals;
+using json = nlohmann::json;
 
 int usage (char const *name, int res)
 {
@@ -16,7 +18,6 @@ int usage (char const *name, int res)
 
 int main(int argc, char *argv[])
 {
-
     std::string dev = "/dev/ttyUSB0";
 
     if (argc < 2)
@@ -37,7 +38,7 @@ int main(int argc, char *argv[])
 
     if (!ctx)
         throw std::runtime_error ("Failed creating ctx for device " + dev);
-    
+
     int api_rv;
     api_rv = modbus_set_debug(ctx, TRUE);
     api_rv = modbus_set_error_recovery(ctx,
