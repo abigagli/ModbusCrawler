@@ -20,13 +20,19 @@ usage(std::string const &prog_name, int res, std::string const &msg = "")
     std::cout << "Usage:\n";
     std::cout << prog_name << R"(
                 [-h(help)]
-                [-d <device = /dev/ttyUSB0>]
                 [-v(erbose)]
-                [-l <line_config ="9600:8:N:1">]
-                [-a <answering_timeout_ms =500>]
-                -s <server_id>
-                <regnum>
-                <regsize ={1|2|4}>)"
+                {
+                    -m <measconfig.json>
+
+                    | 
+
+                    [-d <device = /dev/ttyUSB0>]
+                    [-l <line_config ="9600:8:N:1">]
+                    [-a <answering_timeout_ms =500>]
+                    -s <server_id>
+                    <regnum>
+                    <regsize ={1|2|4}>
+                })"
               << std::endl;
     return res;
 }
@@ -48,48 +54,15 @@ namespace options
     std::string line_config = defaults::line_config;
     int server_id = -1;
     auto answering_time = defaults::answering_time;
+    std::string measconfig;
 
     // cmdline params
     int address;
     int regsize;
 }// namespace options
 
-int main(int argc, char *argv[])
+int single_read (std::string const &prog_name, int argc, char *argv[])
 {
-    optind = 1;
-    int ch;
-    while ((ch = getopt(argc, argv, "hd:vl:s:a:")) != -1)
-    {
-        switch (ch)
-        {
-            case 'd':
-                options::device = optarg;
-                break;
-            case 'v':
-                options::verbose = true;
-                break;
-            case 'l':
-                options::line_config = optarg;
-                break;
-            case 's':
-                options::server_id = std::stoi(optarg);
-                break;
-            case 'a':
-                options::answering_time = std::chrono::milliseconds(std::stoi(optarg));
-                break;
-            case '?':
-                return usage(argv[0], -1);
-                break;
-            case 'h':
-            default:
-                return usage(argv[0], 0);
-        }
-    }
-
-    auto const *prog_name = argv[0];
-    argc -= optind;
-    argv += optind;
-
     if (options::server_id < 0 || argc < 2)
         return usage(prog_name, -1, "missing mandatory parameters");
 
@@ -112,6 +85,50 @@ int main(int argc, char *argv[])
     int64_t const val = ctx.read_holding_registers (options::address, options::regsize);
 
     std::cout << "REGISTER: " << val << '\n';
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    optind = 1;
+    int ch;
+    while ((ch = getopt(argc, argv, "hd:vl:s:a:m:")) != -1)
+    {
+        switch (ch)
+        {
+            case 'd':
+                options::device = optarg;
+                break;
+            case 'v':
+                options::verbose = true;
+                break;
+            case 'l':
+                options::line_config = optarg;
+                break;
+            case 's':
+                options::server_id = std::stoi(optarg);
+                break;
+            case 'a':
+                options::answering_time = std::chrono::milliseconds(std::stoi(optarg));
+                break;
+            case 'm':
+                options::measconfig = optarg;
+                break;
+            case '?':
+                return usage(argv[0], -1);
+                break;
+            case 'h':
+            default:
+                return usage(argv[0], 0);
+        }
+    }
+
+    auto const *prog_name = argv[0];
+    argc -= optind;
+    argv += optind;
+
+    if (options::measconfig.empty())
+        return single_read (prog_name, argc, argv);
 
     return 0;
 }
