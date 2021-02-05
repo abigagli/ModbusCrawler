@@ -58,9 +58,9 @@ namespace options
 
 int main(int argc, char *argv[])
 {
-    optind = 0;
-
-    for (auto ch = getopt(argc, argv, "hd:vl:s:"); ch != -1;)
+    optind = 1;
+    int ch;
+    while ((ch = getopt(argc, argv, "hd:vl:s:")) != -1)
     {
         switch (ch)
         {
@@ -77,17 +77,20 @@ int main(int argc, char *argv[])
                 options::server_id = std::stoi(optarg);
                 break;
             case '?':
+                return usage(argv[0], -1);
+                break;
             case 'h':
             default:
                 return usage(argv[0], 0);
         }
     }
 
+    auto const *prog_name = argv[0];
     argc -= optind;
     argv += optind;
 
     if (argc < 2)
-        return usage(argv[0], -1);
+        return usage(prog_name, -1);
 
     options::address = std::stoi (argv[0]);
     options::regsize = std::stoi (argv[1]);
