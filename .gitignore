@@ -2,3 +2,4 @@ build*
 BUILD*
 compile_commands.json
 .cache
+.vscode
