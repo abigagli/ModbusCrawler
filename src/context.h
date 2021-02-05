@@ -12,7 +12,8 @@
 
 namespace modbus {
 
-inline int64_t to_val(uint16_t const *regs, int regsize)
+inline int64_t
+to_val(uint16_t const *regs, int regsize)
 {
     int64_t val;
     switch (regsize)
@@ -21,10 +22,19 @@ inline int64_t to_val(uint16_t const *regs, int regsize)
         val = regs[0];
         break;
     case 2:
-        val = MODBUS_GET_INT32_FROM_INT16(regs, 0);
+        val = static_cast<int64_t>(regs[1]) << 16 | regs[0];
+        break;
+    case 3:
+        val = static_cast<int64_t>(regs[2]) << 32 |
+              static_cast<int64_t>(regs[1]) << 16 | regs[0];
         break;
     case 4:
-        val = MODBUS_GET_INT64_FROM_INT16(regs, 0);
+        if (regs[3] > std::numeric_limits<int16_t>::max())
+            throw std::overflow_error("MSB of 64bit value too big: " + std::to_string(regs[3]));
+
+        val = static_cast<int64_t>(regs[3]) << 48 |
+              static_cast<int64_t>(regs[2]) << 32 |
+              static_cast<int64_t>(regs[1]) << 16 | regs[0];
         break;
     default:
         assert(!"regsize not supported");
@@ -123,7 +133,7 @@ public:
 
     int64_t read_input_registers(int address, int regsize)
     {
-        if (regsize != 1 && regsize != 2 && regsize != 4)
+        if (regsize > 4)
             throw std::runtime_error("Invalid regsize: " +
                                      std::to_string(regsize));
 
@@ -143,7 +153,7 @@ public:
 
     int64_t read_holding_registers(int address, int regsize)
     {
-        if (regsize != 1 && regsize != 2 && regsize != 4)
+        if (regsize > 4)
             throw std::runtime_error("Invalid regsize: " +
                                      std::to_string(regsize));
 
