@@ -7,6 +7,8 @@
 #include <vector>
 #include <tuple>
 #include <cassert>
+#include <chrono>
+#include <functional>
 
 namespace modbus {
 using namespace std::string_literals;
@@ -138,5 +140,10 @@ public:
                                ctx_.get(),
                                std::forward<Args>(args)...);
         }
+
+	modbus_t *native_handle() const
+	{
+		return ctx_.get();
+	}
     };
 } // namespace modbus
