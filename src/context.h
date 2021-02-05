@@ -127,7 +127,7 @@ public:
             throw std::runtime_error("Invalid regsize: " +
                                      std::to_string(regsize));
 
-        uint16_t regs[4];
+        uint16_t regs[4]{};
         int api_rv =
           modbus_read_input_registers(ctx_.get(),
                                       address,
@@ -147,7 +147,7 @@ public:
             throw std::runtime_error("Invalid regsize: " +
                                      std::to_string(regsize));
 
-        uint16_t regs[4];
+        uint16_t regs[4]{};
         int api_rv = modbus_read_registers(ctx_.get(),
                                            address,
                                            regsize,
