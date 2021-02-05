@@ -27,8 +27,7 @@ namespace
                 [-a <answering_timeout_ms =500>]
                 -s <server_id>
                 <regnum>
-                <regsize ={1|2|4}>
-                )";
+                <regsize ={1|2|4}>)" << std::endl;
         return res;
     }
 
@@ -113,8 +112,8 @@ int main(int argc, char *argv[])
     options::address = std::stoi (argv[0]);
     options::regsize = std::stoi (argv[1]);
 
-    if (options::regsize != 1 ||
-        options::regsize != 2 ||
+    if (options::regsize != 1 &&
+        options::regsize != 2 &&
         options::regsize != 4)
         return usage(prog_name, -1, "regsize allowed values: {1 | 2 | 4}");
 
