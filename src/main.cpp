@@ -5,17 +5,28 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <chrono>
 #include <unistd.h>
 
 using namespace std::string_literals;
+using namespace std::chrono_literals;
 using json = nlohmann::json;
 
 namespace
 {
-    int usage (char const *name, int res)
+    int usage (char const * const name, int res)
     {
         std::cout << "Usage:\n";
-        std::cout << name << " <server_id> [serial_device]\n";
+        std::cout << name << R"(
+                [-h(help)]
+                [-d <device = /dev/ttyUSB0>]
+                [-v(erbose)]
+                [-l <line_config ="9600:8:N:1">]
+                [-a <answering_timeout_ms=500>]
+                -s <server_id>
+                <regnum>
+                <regsize (<= 4)>
+                )";
         return res;
     }
 
@@ -42,14 +53,16 @@ namespace options
     {
         std::string const device = "/dev/ttyUSB0";
         bool const verbose = false;
-        std::string line_config = "9600:8:N:1";
+        std::string const line_config = "9600:8:N:1";
+        auto const answering_time = 500ms;
     }// namespace defaults
 
     // cmdline options
     std::string device = defaults::device;
     bool verbose = defaults::verbose;
     std::string line_config = defaults::line_config;
-    int server_id;
+    int server_id = -1;
+    auto answering_time = defaults::answering_time;
 
     // cmdline params
     int address;
@@ -60,7 +73,7 @@ int main(int argc, char *argv[])
 {
     optind = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "hd:vl:s:")) != -1)
+    while ((ch = getopt(argc, argv, "hd:vl:s:a:")) != -1)
     {
         switch (ch)
         {
@@ -76,6 +89,9 @@ int main(int argc, char *argv[])
             case 's':
                 options::server_id = std::stoi(optarg);
                 break;
+            case 'a':
+                options::answering_time = std::chrono::milliseconds(std::stoi(optarg));
+                break;
             case '?':
                 return usage(argv[0], -1);
                 break;
@@ -89,7 +105,7 @@ int main(int argc, char *argv[])
     argc -= optind;
     argv += optind;
 
-    if (argc < 2)
+    if (options::server_id < 0 || argc < 2)
         return usage(prog_name, -1);
 
     options::address = std::stoi (argv[0]);
@@ -103,12 +119,18 @@ int main(int argc, char *argv[])
         throw std::runtime_error ("Failed creating ctx for device " + options::device);
 
     int api_rv;
-    api_rv = modbus_set_debug(ctx, TRUE);
+    if (options::verbose)
+        api_rv = modbus_set_debug(ctx, TRUE);
+
     api_rv = modbus_set_error_recovery(ctx,
                               static_cast<modbus_error_recovery_mode>(
                                     MODBUS_ERROR_RECOVERY_LINK |
                                     MODBUS_ERROR_RECOVERY_PROTOCOL));
 
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(options::answering_time);
+    auto microseconds = std::chrono::microseconds(options::answering_time - seconds); 
+
+    api_rv = modbus_set_response_timeout(ctx, seconds.count(), microseconds.count());
     api_rv = modbus_set_slave(ctx, options::server_id);
     api_rv = modbus_connect(ctx);
 
