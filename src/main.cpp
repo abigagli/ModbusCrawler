@@ -22,7 +22,7 @@ usage(std::string const &prog_name, int res, std::string const &msg = "")
                 [-h(help)]
                 [-v(erbose)]
                 {
-                    -m <measconfig.json>
+                    -m <measconfig_file.json>
 
                     | 
 
@@ -31,7 +31,7 @@ usage(std::string const &prog_name, int res, std::string const &msg = "")
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
                     <regnum>
-                    <regsize <=4}>
+                    <regsize <=4l/4b}>
                 })"
               << std::endl;
     return res;
@@ -48,17 +48,19 @@ namespace options
         auto const answering_time = 500ms;
     }// namespace defaults
 
-    // cmdline options
+    // Measure mode
+    std::string measconfig_file;
+
+    // Single-shot reads
     std::string device = defaults::device;
     bool verbose = defaults::verbose;
     std::string line_config = defaults::line_config;
     int server_id = -1;
     auto answering_time = defaults::answering_time;
-    std::string measconfig;
 
-    // cmdline params
     int address;
     int regsize;
+    modbus::word_endianess word_endianess;
 }// namespace options
 
 int single_read (std::string const &prog_name, int argc, char *argv[])
@@ -67,7 +69,11 @@ int single_read (std::string const &prog_name, int argc, char *argv[])
         return usage(prog_name, -1, "missing mandatory parameters");
 
     options::address = std::stoi (argv[0]);
-    options::regsize = std::stoi (argv[1]);
+
+    options::regsize = argv[1][0] - '0';
+
+    options::word_endianess = argv[1][1] == 'l' ? modbus::word_endianess::little : modbus::word_endianess::big;
+
 
     if (options::regsize > 4)
         return usage(prog_name, -1, "regsize must be <= 4");
@@ -80,7 +86,7 @@ int single_read (std::string const &prog_name, int argc, char *argv[])
     // if (options::address >= 40000)
     //     options::address -= 40000;
 
-    int64_t const val = ctx.read_holding_registers (options::address, options::regsize);
+    int64_t const val = ctx.read_holding_registers (options::address, options::regsize, options::word_endianess);
 
     std::cout << "REGISTER: " << val << '\n';
     return 0;
@@ -110,7 +116,7 @@ int main(int argc, char *argv[])
                 options::answering_time = std::chrono::milliseconds(std::stoi(optarg));
                 break;
             case 'm':
-                options::measconfig = optarg;
+                options::measconfig_file = optarg;
                 break;
             case '?':
                 return usage(argv[0], -1);
@@ -125,7 +131,7 @@ int main(int argc, char *argv[])
     argc -= optind;
     argv += optind;
 
-    if (options::measconfig.empty())
+    if (options::measconfig_file.empty())
         return single_read (prog_name, argc, argv);
 
     return 0;

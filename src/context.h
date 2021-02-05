@@ -12,8 +12,18 @@
 
 namespace modbus {
 
+enum class word_endianess
+{
+    little,
+    big
+};
+
+namespace detail {
+struct word_be_tag{};
+struct word_le_tag{};
+
 inline int64_t
-to_val(uint16_t const *regs, int regsize)
+to_val(uint16_t const *regs, int regsize, word_le_tag)
 {
     int64_t val;
     switch (regsize)
@@ -42,6 +52,38 @@ to_val(uint16_t const *regs, int regsize)
 
     return val;
 }
+
+inline int64_t
+to_val(uint16_t const *regs, int regsize, word_be_tag)
+{
+    int64_t val;
+    switch (regsize)
+    {
+    case 1:
+        val = regs[0];
+        break;
+    case 2:
+        val = static_cast<int64_t>(regs[0]) << 16 | regs[1];
+        break;
+    case 3:
+        val = static_cast<int64_t>(regs[0]) << 32 |
+              static_cast<int64_t>(regs[1]) << 16 | regs[2];
+        break;
+    case 4:
+        if (regs[0] > std::numeric_limits<int16_t>::max())
+            throw std::overflow_error("MSB of 64bit value too big: " + std::to_string(regs[0]));
+
+        val = static_cast<int64_t>(regs[0]) << 48 |
+              static_cast<int64_t>(regs[1]) << 32 |
+              static_cast<int64_t>(regs[2]) << 16 | regs[3];
+        break;
+    default:
+        assert(!"regsize not supported");
+    }
+
+    return val;
+}
+}// namespace unnamed
 
 class SerialLine
 {
@@ -131,7 +173,7 @@ public:
                                      modbus_strerror(errno));
     }
 
-    int64_t read_input_registers(int address, int regsize)
+    int64_t read_input_registers(int address, int regsize, word_endianess endianess)
     {
         if (regsize > 4)
             throw std::runtime_error("Invalid regsize: " +
@@ -148,10 +190,12 @@ public:
             throw std::runtime_error("Failed modbus_read_input_registers: "s +
                                      modbus_strerror(errno));
 
-        return to_val(regs, regsize);
+        return endianess == word_endianess::little
+                 ? to_val(regs, regsize, detail::word_le_tag{})
+                 : to_val(regs, regsize, detail::word_be_tag{});
     }
 
-    int64_t read_holding_registers(int address, int regsize)
+    int64_t read_holding_registers(int address, int regsize, word_endianess endianess)
     {
         if (regsize > 4)
             throw std::runtime_error("Invalid regsize: " +
@@ -167,7 +211,9 @@ public:
             throw std::runtime_error("Failed modbus_read_registers: "s +
                                      modbus_strerror(errno));
 
-        return to_val(regs, regsize);
+        return endianess == word_endianess::little
+                 ? to_val(regs, regsize, detail::word_le_tag{})
+                 : to_val(regs, regsize, detail::word_be_tag{});
     }
 
     template <class F, class... Args>
