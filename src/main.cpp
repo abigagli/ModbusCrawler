@@ -14,18 +14,20 @@ using json = nlohmann::json;
 
 namespace
 {
-    int usage (char const * const name, int res)
+    int usage (std::string const &prog_name, int res, std::string const &msg = "")
     {
+        if (!msg.empty())
+            std::cout << "\n*** ERROR: " << msg << " ***\n\n";
         std::cout << "Usage:\n";
-        std::cout << name << R"(
+        std::cout << prog_name << R"(
                 [-h(help)]
                 [-d <device = /dev/ttyUSB0>]
                 [-v(erbose)]
                 [-l <line_config ="9600:8:N:1">]
-                [-a <answering_timeout_ms=500>]
+                [-a <answering_timeout_ms =500>]
                 -s <server_id>
                 <regnum>
-                <regsize (<= 4)>
+                <regsize ={1|2|4}>
                 )";
         return res;
     }
@@ -106,10 +108,16 @@ int main(int argc, char *argv[])
     argv += optind;
 
     if (options::server_id < 0 || argc < 2)
-        return usage(prog_name, -1);
+        return usage(prog_name, -1, "missing mandatory parameters");
 
     options::address = std::stoi (argv[0]);
     options::regsize = std::stoi (argv[1]);
+
+    if (options::regsize != 1 ||
+        options::regsize != 2 ||
+        options::regsize != 4)
+        return usage(prog_name, -1, "regsize allowed values: {1 | 2 | 4}");
+
 
     auto [bps, data_bits, parity, stop_bits] = unpack_line_config (std::istringstream(options::line_config));
 
@@ -128,28 +136,40 @@ int main(int argc, char *argv[])
                                     MODBUS_ERROR_RECOVERY_PROTOCOL));
 
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(options::answering_time);
-    auto microseconds = std::chrono::microseconds(options::answering_time - seconds); 
+    auto microseconds = std::chrono::microseconds(options::answering_time - seconds);
 
-    api_rv = modbus_set_response_timeout(ctx, seconds.count(), microseconds.count());
-    api_rv = modbus_set_slave(ctx, options::server_id);
-    api_rv = modbus_connect(ctx);
+    modbus_set_response_timeout(ctx, seconds.count(), microseconds.count());
+    modbus_set_slave(ctx, options::server_id);
 
-    if (api_rv < 0)
-        throw std::runtime_error ("Connection failed: "s + modbus_strerror(errno));
+    if (modbus_connect(ctx) < 0)
+        throw std::runtime_error ("Failed modbus_connect: "s + modbus_strerror(errno));
 
+    // if (options::address >= 40000)
+    //     options::address -= 40000;
 
-    uint16_t regs[2];
-    if (options::address >= 40000)
-        api_rv = modbus_read_registers(ctx, options::address - 40000, options::regsize, regs);  // Holding register: Code 03
-    else
-        api_rv = modbus_read_input_registers(ctx, options::address, options::regsize, regs);    // Input register: Code 04
+    uint16_t regs[4];
+    api_rv = modbus_read_registers(ctx, options::address, options::regsize, regs);  // Holding register: Code 03
 
+    if (api_rv != options::regsize)
+        throw std::runtime_error ("Failed modbus_read_registers: "s + modbus_strerror(errno));
 
-    int val;
-    if (options::regsize == 1)
-        val = regs[0];
-    else
-        val = static_cast<int>(regs[0]) << 16 | regs[1];
+    //api_rv = modbus_read_input_registers(ctx, options::address, options::regsize, regs);    // Input register: Code 04
+
+    int64_t val;
+    switch (options::regsize)
+    {
+        case 1:
+            val = regs[0];
+            break;
+        case 2:
+            val = MODBUS_GET_INT32_FROM_INT16(regs, 0);
+            break;
+        case 4:
+            val = MODBUS_GET_INT64_FROM_INT16(regs, 0);
+            break;
+        default:
+            assert (!"Unreachable");
+    }
 
     std::cout << "API: " << api_rv << ", REGISTER: " << val << '\n';
 
