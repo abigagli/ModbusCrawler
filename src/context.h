@@ -15,7 +15,8 @@ namespace modbus {
 enum class word_endianess
 {
     little,
-    big
+    big,
+    dontcare
 };
 
 namespace detail {
