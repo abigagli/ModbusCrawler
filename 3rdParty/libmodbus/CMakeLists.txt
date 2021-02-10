@@ -1,5 +1,9 @@
 include(ExternalProject)
 
+if (CMAKE_CROSSCOMPILING)
+    set (CROSS_COMPILING_SUPPORT --host=${CROSS_COMPILE_HOST} "CC=${CMAKE_C_COMPILER}" "CFLAGS=--sysroot=${CMAKE_SYSROOT}" "LDFLAGS=--sysroot=${CMAKE_SYSROOT}")
+endif()
+
 ExternalProject_Add(
     MODBUS_EXTPRJ
     GIT_REPOSITORY git@github.com:stephane/libmodbus.git
@@ -8,7 +12,7 @@ ExternalProject_Add(
     INSTALL_DIR INSTALL
     UPDATE_COMMAND ""
     #CONFIGURE_COMMAND $<$<CONFIG:Debug>:CFLAGS="-g3 -O0"> <SOURCE_DIR>/configure --prefix=<INSTALL_DIR> --enable-static --disable-tests --without-documentation
-    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env "$<$<CONFIG:Debug>:CFLAGS=-g3 -O0>" <SOURCE_DIR>/configure --prefix=<INSTALL_DIR> --enable-static --disable-tests --without-documentation
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env "$<$<CONFIG:Debug>:CFLAGS=-g3 -O0>" <SOURCE_DIR>/configure --prefix=<INSTALL_DIR> --enable-static --disable-tests --without-documentation ${CROSS_COMPILING_SUPPORT}
     LOG_DOWNLOAD ON
     LOG_CONFIGURE ON
     LOG_BUILD ON
