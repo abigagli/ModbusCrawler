@@ -1,0 +1,25 @@
+{
+    "version": 1,
+    "configurePresets": [
+        {
+            "name": "DEBUG",
+            "binaryDir": "${sourceDir}/BUILD_${presetName}",
+            "generator": "Unix Makefiles",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_INSTALL_PREFIX": "/tmp/MBCRAWLER_INSTALL_${presetName}"
+            }
+        },
+        {
+            "name": "RELEASE",
+            "binaryDir": "${sourceDir}/BUILD_${presetName}",
+            "generator": "Unix Makefiles",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_INSTALL_PREFIX": "/tmp/MBCRAWLER_INSTALL_${presetName}"
+            }
+        }
+    ]
+}
