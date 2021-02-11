@@ -10,15 +10,20 @@
 using namespace std::chrono_literals;
 using json = nlohmann::json;
 
-namespace {
+int measure_mode (std::string const &jsonconfig)
+{
+    return 0;
+}
 
+namespace {
+std::string g_prog_name;
 int
-usage(std::string const &prog_name, int res, std::string const &msg = "")
+usage(int res, std::string const &msg = "")
 {
     if (!msg.empty())
         std::cout << "\n*** ERROR: " << msg << " ***\n\n";
     std::cout << "Usage:\n";
-    std::cout << prog_name << R"(
+    std::cout << g_prog_name << R"(
                 [-h(help)]
                 [-v(erbose)]
                 {
@@ -57,36 +62,27 @@ namespace options
     std::string line_config = defaults::line_config;
     int server_id = -1;
     auto answering_time = defaults::answering_time;
-
-    int address;
-    int regsize;
-    modbus::word_endianess word_endianess;
 }// namespace options
 
-int single_read (std::string const &prog_name, int argc, char *argv[])
+int single_read (int address, std::string regspec)
 {
-    if (options::server_id < 0 || argc < 2)
-        return usage(prog_name, -1, "missing mandatory parameters");
+    int const regsize = regspec[0] - '0';
+    modbus::word_endianess word_endianess;
 
-    options::address = std::stoi (argv[0]);
-
-    std::string regspec = argv[1];
-    options::regsize = regspec[0] - '0';
-
-    if (options::regsize > 1)
+    if (regsize > 1)
     {
-        if (options::regsize > 4)
-            return usage(prog_name, -1, "regsize must be <= 4");
+        if (regsize > 4)
+            return usage(-1, "regsize must be <= 4");
 
         if (regspec.size() != 2 || (regspec[1] != 'l' && regspec[1] != 'b'))
-            return usage(prog_name, -1, "invalid regsize specification: " + regspec);
+            return usage(-1, "invalid regsize specification: " + regspec);
 
-        options::word_endianess = regspec[1] == 'l'
+        word_endianess = regspec[1] == 'l'
                                     ? modbus::word_endianess::little
                                     : modbus::word_endianess::big;
     }
     else
-        options::word_endianess = modbus::word_endianess::dontcare;
+        word_endianess = modbus::word_endianess::dontcare;
 
     modbus::RTUContext ctx(options::server_id,
                             modbus::SerialLine(options::device, options::line_config),
@@ -96,14 +92,15 @@ int single_read (std::string const &prog_name, int argc, char *argv[])
     // if (options::address >= 40000)
     //     options::address -= 40000;
 
-    int64_t const val = ctx.read_holding_registers (options::address, options::regsize, options::word_endianess);
+    int64_t const val = ctx.read_holding_registers (address, regsize, word_endianess);
 
-    std::cout << "REGISTER: " << val << '\n';
+    std::cout << "REGISTER " << address << ": " << val << '\n';
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
+    g_prog_name = argv[0];
     optind = 1;
     int ch;
     while ((ch = getopt(argc, argv, "hd:vl:s:a:m:")) != -1)
@@ -129,11 +126,11 @@ int main(int argc, char *argv[])
                 options::measconfig_file = optarg;
                 break;
             case '?':
-                return usage(argv[0], -1);
+                return usage(-1);
                 break;
             case 'h':
             default:
-                return usage(argv[0], 0);
+                return usage(0);
         }
     }
 
@@ -142,7 +139,14 @@ int main(int argc, char *argv[])
     argv += optind;
 
     if (options::measconfig_file.empty())
-        return single_read (prog_name, argc, argv);
+    {
+        if (options::server_id < 0 || argc < 2)
+            return usage(-1, "missing mandatory parameters");
 
-    return 0;
+        int const address   = std::stoi(argv[0]);
+        char const *regspec = argv[1];
+        return single_read(address, regspec);
+    }
+
+    return measure_mode (options::measconfig_file);
 }
