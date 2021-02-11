@@ -1,4 +1,6 @@
 #pragma once
+#include "modbus_types.h"
+#include <nlohmann/json.hpp>
 
 #include <modbus.h>
 #include <memory>
@@ -11,13 +13,6 @@
 #include <functional>
 
 namespace modbus {
-
-enum class word_endianess
-{
-    little,
-    big,
-    dontcare
-};
 
 namespace detail {
 struct word_be_tag{};

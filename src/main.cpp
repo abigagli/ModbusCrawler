@@ -1,6 +1,5 @@
-#include "context.h"
-
-#include <nlohmann/json.hpp>
+#include "rtu_context.hpp"
+#include "measconfig.hpp"
 
 #include <iostream>
 #include <string>
@@ -8,13 +7,6 @@
 #include <unistd.h>
 
 using namespace std::chrono_literals;
-using json = nlohmann::json;
-
-int measure_mode (std::string const &jsonconfig)
-{
-    return 0;
-}
-
 namespace {
 std::string g_prog_name;
 int
@@ -148,5 +140,12 @@ int main(int argc, char *argv[])
         return single_read(address, regspec);
     }
 
-    return measure_mode (options::measconfig_file);
+    auto measconfig = measure::read_config(options::measconfig_file);
+
+    for (auto const &el: measconfig)
+    {
+        std::cout << "Server: " << el.first << " -> " << el.second[0].name << '\n';
+    }
+
+    return 0;
 }
