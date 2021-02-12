@@ -1,14 +1,8 @@
-#pragma once
-
-#include "modbus_types.h"
+#include "meas_config.h"
 
 #include <nlohmann/json.hpp>
 
-#include <fstream>
-#include <vector>
-#include <string>
-#include <map>
-#include <chrono>
+using json = nlohmann::json;
 
 namespace nlohmann
 {
@@ -45,26 +39,11 @@ NLOHMANN_JSON_SERIALIZE_ENUM(regtype,
 
 namespace measure
 {
-using json = nlohmann::json;
-using namespace std::chrono_literals;
-
-struct modbus_server_t
-{
-    int modbus_id;
-    std::string name;
-    std::string serial_device;
-
-    // Optionally present in json, so they have default values
-    std::string line_config = "9600:8:N:1";
-    std::chrono::milliseconds answering_time = 500ms;
-    //NLOHMANN_DEFINE_TYPE_INTRUSIVE(server_t, server_id, serial_device, line_config, answering_time_ms)
-};
-
 // Can't rely on the handy NLOHMANN_DEFINE_TYPE_INTRUSIVE macro
 // for server_t as I want to allow for default values for line_config
 // and answering_time_ms members, which means the corresponding json keys
 // might be missing
-inline void
+void
 to_json(json &j, modbus_server_t const &s)
 {
     j = json{{"modbus_id", s.modbus_id},
@@ -75,7 +54,7 @@ to_json(json &j, modbus_server_t const &s)
 }
 
 void
-inline from_json(json const &j, modbus_server_t &s)
+from_json(json const &j, modbus_server_t &s)
 {
     j.at("modbus_id").get_to(s.modbus_id);
     j.at("serial_device").get_to(s.serial_device);
@@ -91,34 +70,11 @@ inline from_json(json const &j, modbus_server_t &s)
         at_it->get_to(s.answering_time);
 }
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(measure_t::source_register_t, address, size, endianess, type, scale_factor)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(measure_t, name, accumulating, sampling_period, source)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(descriptor_t, server, measures)
 
-struct measure_t
-{
-    std::string name;
-    bool accumulating;
-    std::chrono::seconds sampling_period;
-    struct source_register_t
-    {
-        int address;
-        int size;
-        modbus::word_endianess endianess;
-        modbus::regtype type;
-        double scale_factor;
-        NLOHMANN_DEFINE_TYPE_INTRUSIVE(source_register_t, address, size, endianess, type, scale_factor)
-    } source;
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(measure_t, name, accumulating, sampling_period, source)
-};
-
-struct descriptor_t
-{
-    modbus_server_t server;
-    std::vector<measure_t> measures;
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(descriptor_t, server, measures)
-};
-
-using server_id_t = int;
-
-inline std::map<server_id_t, descriptor_t>
+configuration_map_t
 read_config(std::string const &measconfig_file)
 {
     std::ifstream ifs(measconfig_file);
@@ -130,9 +86,13 @@ read_config(std::string const &measconfig_file)
     for (auto const &desc : j.get<std::vector<descriptor_t>>())
     {
         auto const server_id = desc.server.modbus_id;
-        measure_descriptors.emplace(server_id, std::move(desc));
+        auto [_, added] = measure_descriptors.try_emplace(server_id, std::move(desc));
+
+        if (!added)
+            throw std::invalid_argument("Duplicate Modbus ID: " + std::to_string(server_id));
     }
 
     return measure_descriptors;
 }
+
 }// namespace measure

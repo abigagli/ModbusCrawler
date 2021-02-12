@@ -1,5 +1,6 @@
 #include "rtu_context.hpp"
-#include "measconfig.hpp"
+#include "meas_config.h"
+#include "meas_scheduler.h"
 
 #include <iostream>
 #include <string>
@@ -140,12 +141,9 @@ int main(int argc, char *argv[])
         return single_read(address, regspec);
     }
 
-    auto meas_descriptors = measure::read_config(options::measconfig_file);
+    auto meas_config = measure::read_config(options::measconfig_file);
 
-    for (auto const &el: meas_descriptors)
-    {
-        std::cout << "Server: " << el.first << " -> " << el.second.server.name << '\n';
-    }
+    measure::scheduler scheduler(std::move(meas_config));
 
-    return 0;
+    return scheduler.run();
 }
