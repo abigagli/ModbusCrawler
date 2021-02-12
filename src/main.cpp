@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 
     for (auto const &el: meas_descriptors)
     {
-        std::cout << "Server: " << el.first << " -> " << el.second.modbus_server.line_config << '\n';
+        std::cout << "Server: " << el.first << " -> " << el.second.server.name << '\n';
     }
 
     return 0;

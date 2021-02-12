@@ -48,9 +48,10 @@ namespace measure
 using json = nlohmann::json;
 using namespace std::chrono_literals;
 
-struct server_t
+struct modbus_server_t
 {
-    int server_id;
+    int modbus_id;
+    std::string name;
     std::string serial_device;
 
     // Optionally present in json, so they have default values
@@ -64,19 +65,21 @@ struct server_t
 // and answering_time_ms members, which means the corresponding json keys
 // might be missing
 inline void
-to_json(json &j, server_t const &s)
+to_json(json &j, modbus_server_t const &s)
 {
-    j = json{{"server_id", s.server_id},
+    j = json{{"modbus_id", s.modbus_id},
+             {"name", s.name},
              {"serial_device", s.serial_device},
              {"line_config", s.line_config},
              {"answering_time_ms", s.answering_time}};
 }
 
 void
-inline from_json(json const &j, server_t &s)
+inline from_json(json const &j, modbus_server_t &s)
 {
-    j.at("server_id").get_to(s.server_id);
+    j.at("modbus_id").get_to(s.modbus_id);
     j.at("serial_device").get_to(s.serial_device);
+    j.at("name").get_to(s.name);
 
     // Handle the optionality...
     auto const lc_it = j.find("line_config");
@@ -108,9 +111,9 @@ struct measure_t
 
 struct descriptor_t
 {
-    server_t modbus_server;
+    modbus_server_t server;
     std::vector<measure_t> measures;
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(descriptor_t, modbus_server, measures)
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(descriptor_t, server, measures)
 };
 
 using server_id_t = int;
@@ -126,7 +129,7 @@ read_config(std::string const &measconfig_file)
 
     for (auto const &desc : j.get<std::vector<descriptor_t>>())
     {
-        auto const server_id = desc.modbus_server.server_id;
+        auto const server_id = desc.server.modbus_id;
         measure_descriptors.emplace(server_id, std::move(desc));
     }
 
