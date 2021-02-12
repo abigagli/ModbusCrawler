@@ -77,10 +77,12 @@ int single_read (int address, std::string regspec)
     else
         word_endianess = modbus::word_endianess::dontcare;
 
-    modbus::RTUContext ctx(options::server_id,
-                            modbus::SerialLine(options::device, options::line_config),
-                           options::answering_time,
-                           options::verbose);
+    modbus::RTUContext ctx(
+      options::server_id,
+      "Server_" + std::to_string(options::server_id),
+      modbus::SerialLine(options::device, options::line_config),
+      options::answering_time,
+      options::verbose);
 
     // if (options::address >= 40000)
     //     options::address -= 40000;
@@ -143,7 +145,7 @@ int main(int argc, char *argv[])
 
     auto meas_config = measure::read_config(options::measconfig_file);
 
-    measure::scheduler scheduler(std::move(meas_config));
+    measure::scheduler scheduler(std::move(meas_config), options::verbose);
 
-    return scheduler.run();
+    return scheduler.run_loop();
 }

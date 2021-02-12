@@ -7,21 +7,61 @@
 using namespace tsc;
 namespace measure
 {
-    int scheduler::run()
+void
+scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
+                        std::vector<measure_t> const &measures)
+{
+    for (auto const &meas: measures)
     {
-    impl_.Schedule(std::chrono::seconds(3), [](TaskContext context)
-                       {
-                       std::cout << "******** EXCUTING PERIOD 3 # " << context.GetRepeatCounter() << " ********\n";
+        impl_.Schedule(
+          meas.sampling_period,
+          modbus_cxt.id(),
+          [this, &modbus_cxt, meas](tsc::TaskContext tc) mutable {
+              if (verbose_)
+              {
+                  std::cout << "Server " << modbus_cxt.name() << "@"
+                            << modbus_cxt.id() << ": reading register "
+                            << meas.source.address << "#" << meas.source.size
+                            << " for the " << tc.GetRepeatCounter() << "time: ";
+              }
 
-                       context.Repeat();
-                       });
+              int64_t value;
+              if (meas.source.type == modbus::regtype::holding)
+                  value =
+                    modbus_cxt.read_holding_registers(meas.source.address,
+                                                      meas.source.size,
+                                                      meas.source.endianess);
+              else
+                  value =
+                    modbus_cxt.read_input_registers(meas.source.address,
+                                                    meas.source.size,
+                                                    meas.source.endianess);
 
-    impl_.Schedule(std::chrono::seconds(2), [](TaskContext context)
-                       {
-                       std::cout << "******** EXCUTING PERIOD 2 # " << context.GetRepeatCounter() << " ********\n";
+              if (verbose_)
+                  std::cout << value << '\n';
 
-                       context.Repeat();
-                       });
+            tc.Repeat();
+
+          });
+    }
+
+    }
+
+    int scheduler::run_loop()
+    {
+    // impl_.Schedule(std::chrono::seconds(3), [](TaskContext context)
+    //                    {
+    //                    std::cout << "******** EXCUTING PERIOD 3 # " << context.GetRepeatCounter() << " ********\n";
+
+    //                    context.Repeat();
+    //                    });
+
+    // impl_.Schedule(std::chrono::seconds(2), [](TaskContext context)
+    //                    {
+    //                    std::cout << "******** EXCUTING PERIOD 2 # " << context.GetRepeatCounter() << " ********\n";
+
+    //                    context.Repeat();
+    //                    });
     while (true)
     {
         std::cout << "SCHEDULING\n";

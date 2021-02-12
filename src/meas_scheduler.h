@@ -15,6 +15,8 @@ class scheduler
     std::map<measure::server_id_t, modbus::RTUContext> mbcxts_;
     bool verbose_;
 
+    void add_schedule (modbus::RTUContext &modbus_cxt, std::vector<measure_t> const &measures);
+
 public:
     scheduler(configuration_map_t configmap, bool verbose = false)
       : configmap_(std::move(configmap))
@@ -23,31 +25,27 @@ public:
         for (auto const &el: configmap_)
         {
             auto const &server_config = el.second.server;
-            // mbcxts_.emplace(std::piecewise_construct,
-            //                 std::forward_as_tuple(server_config.modbus_id),
-            //                 std::forward_as_tuple(
-            //                   server_config.modbus_id,
-            //                   modbus::SerialLine(server_config.serial_device,
-            //                                      server_config.line_config),
-            //                   server_config.answering_time,
-            //                   verbose_));
-            bool cxt_added;
-            std::tie (std::ignore, cxt_added) = mbcxts_.try_emplace(
+
+            auto cxt_insertion_result = mbcxts_.try_emplace(
                 //Key
               server_config.modbus_id,
                 //Args for RTUContext ctor
               server_config.modbus_id,
+              server_config.name,
               modbus::SerialLine(server_config.serial_device,
                                  server_config.line_config),
               server_config.answering_time,
               verbose_);
 
             
-            if (!cxt_added)
+            if (!cxt_insertion_result.second)
                 throw std::runtime_error("Failed creating RTUContext for modbus id " + std::to_string(server_config.modbus_id));
+
+            add_schedule(cxt_insertion_result.first->second,
+                         el.second.measures);
         }
     }
 
-    int run();
+    int run_loop();
 };
 } // namespace measure

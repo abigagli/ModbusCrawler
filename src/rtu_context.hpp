@@ -130,12 +130,27 @@ class RTUContext
     };
 
     std::unique_ptr<modbus_t, ctx_deleter> ctx_;
+    int modbus_id_;
+    std::string server_name_;
 
 public:
+    std::string const &name() const noexcept
+    {
+        return server_name_;
+    }
+
+    int id() const noexcept
+    {
+        return modbus_id_;
+    }
+
     RTUContext(int server_id,
+               std::string server_name,
                SerialLine const &serial_line,
                std::chrono::milliseconds const &answering_time,
                bool verbose = false)
+               : modbus_id_(server_id)
+               , server_name_(std::move(server_name))
     {
         ctx_.reset(modbus_new_rtu(serial_line.device_.c_str(),
                                   serial_line.bps_,
@@ -219,6 +234,6 @@ public:
           std::forward<F>(callable), ctx_.get(), std::forward<Args>(args)...);
     }
 
-    modbus_t *native_handle() const { return ctx_.get(); }
+    modbus_t *native_handle() const noexcept { return ctx_.get(); }
 };
 } // namespace modbus
