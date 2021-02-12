@@ -17,7 +17,7 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
           meas.sampling_period,
           modbus_cxt.id(),
           [this, &modbus_cxt, meas](tsc::TaskContext tc) mutable {
-              if (verbose_)
+              if (true)
               {
                   std::cout << "Server " << modbus_cxt.name() << "@"
                             << modbus_cxt.id() << ": reading register "
@@ -26,19 +26,26 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
               }
 
               int64_t value;
-              if (meas.source.type == modbus::regtype::holding)
-                  value =
-                    modbus_cxt.read_holding_registers(meas.source.address,
-                                                      meas.source.size,
-                                                      meas.source.endianess);
-              else
-                  value =
-                    modbus_cxt.read_input_registers(meas.source.address,
-                                                    meas.source.size,
-                                                    meas.source.endianess);
+              try
+              {
+                  if (meas.source.type == modbus::regtype::holding)
+                      value = modbus_cxt.read_holding_registers(
+                        meas.source.address,
+                        meas.source.size,
+                        meas.source.endianess);
+                  else
+                      value =
+                        modbus_cxt.read_input_registers(meas.source.address,
+                                                        meas.source.size,
+                                                        meas.source.endianess);
 
-              if (verbose_)
-                  std::cout << value << '\n';
+                  if (true)
+                      std::cout << value << '\n';
+              }
+              catch (std::exception &e)
+              {
+                std::cerr << "******** FAILED *******\n";
+              }
 
             tc.Repeat();
 
