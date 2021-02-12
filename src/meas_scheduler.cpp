@@ -19,10 +19,12 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
           [this, &modbus_cxt, meas](tsc::TaskContext tc) mutable {
               if (true)
               {
-                  std::cout << "Server " << modbus_cxt.name() << "@"
-                            << modbus_cxt.id() << ": reading register "
-                            << meas.source.address << "#" << meas.source.size
-                            << " for the " << tc.GetRepeatCounter() << "time: ";
+                  auto const now = std::chrono::system_clock::now();
+                  std::cout << now.time_since_epoch().count() << ": "
+                            << modbus_cxt.name() << "@" << modbus_cxt.id()
+                            << ": reading register " << meas.source.address
+                            << "#" << meas.source.size << " for the "
+                            << tc.GetRepeatCounter() << " time: ";
               }
 
               int64_t value;
@@ -40,7 +42,7 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                                                         meas.source.endianess);
 
                   if (true)
-                      std::cout << value << '\n';
+                      std::cout << value * meas.source.scale_factor << '\n';
               }
               catch (std::exception &e)
               {
