@@ -5,6 +5,8 @@
 
 #include <TaskScheduler.hpp>
 
+#include <tuple>
+
 namespace measure {
 class scheduler
 {
@@ -29,7 +31,8 @@ public:
             //                                      server_config.line_config),
             //                   server_config.answering_time,
             //                   verbose_));
-            auto [_, cxt_added] = mbcxts_.try_emplace(
+            bool cxt_added;
+            std::tie (std::ignore, cxt_added) = mbcxts_.try_emplace(
                 //Key
               server_config.modbus_id,
                 //Args for RTUContext ctor

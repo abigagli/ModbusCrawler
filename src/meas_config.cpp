@@ -2,6 +2,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <tuple>
+
 using json = nlohmann::json;
 
 namespace nlohmann
@@ -86,7 +88,9 @@ read_config(std::string const &measconfig_file)
     for (auto const &desc : j.get<std::vector<descriptor_t>>())
     {
         auto const server_id = desc.server.modbus_id;
-        auto [_, added] = measure_descriptors.try_emplace(server_id, std::move(desc));
+        bool added;
+
+        std::tie(std::ignore, added) = measure_descriptors.try_emplace(server_id, std::move(desc));
 
         if (!added)
             throw std::invalid_argument("Duplicate Modbus ID: " + std::to_string(server_id));
