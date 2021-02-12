@@ -21,6 +21,7 @@ usage(int res, std::string const &msg = "")
                 [-v(erbose)]
                 {
                     -m <measconfig_file.json>
+                    [-u <runloop update period ms = 200>]
 
                     |
 
@@ -44,10 +45,12 @@ namespace options
         bool const verbose = false;
         std::string const line_config = "9600:8:N:1";
         auto const answering_time = 500ms;
+        auto const runloop_update_period = 200ms;
     }// namespace defaults
 
     // Measure mode
     std::string measconfig_file;
+    std::chrono::milliseconds runloop_update_period = defaults::runloop_update_period;
 
     // Single-shot reads
     std::string device = defaults::device;
@@ -98,7 +101,7 @@ int main(int argc, char *argv[])
     g_prog_name = argv[0];
     optind = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "hd:vl:s:a:m:")) != -1)
+    while ((ch = getopt(argc, argv, "hd:vl:s:a:m:u:")) != -1)
     {
         switch (ch)
         {
@@ -119,6 +122,9 @@ int main(int argc, char *argv[])
                 break;
             case 'm':
                 options::measconfig_file = optarg;
+                break;
+            case 'u':
+                options::runloop_update_period = std::chrono::milliseconds(std::stoi(optarg));
                 break;
             case '?':
                 return usage(-1);
@@ -147,5 +153,5 @@ int main(int argc, char *argv[])
 
     measure::scheduler scheduler(std::move(meas_config), options::verbose);
 
-    return scheduler.run_loop();
+    return scheduler.run_loop(options::runloop_update_period);
 }

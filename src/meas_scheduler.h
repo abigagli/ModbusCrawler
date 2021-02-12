@@ -6,6 +6,7 @@
 #include <TaskScheduler.hpp>
 
 #include <tuple>
+#include <chrono>
 
 namespace measure {
 class scheduler
@@ -46,6 +47,6 @@ public:
         }
     }
 
-    int run_loop();
+    int run_loop(std::chrono::milliseconds update_period);
 };
 } // namespace measure

@@ -57,7 +57,7 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
 
     }
 
-    int scheduler::run_loop()
+    int scheduler::run_loop(std::chrono::milliseconds update_period)
     {
     // impl_.Schedule(std::chrono::seconds(3), [](TaskContext context)
     //                    {
@@ -74,9 +74,8 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
     //                    });
     while (true)
     {
-        std::cout << "SCHEDULING\n";
         impl_.Update();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(update_period);
     }
 
     return 0;
