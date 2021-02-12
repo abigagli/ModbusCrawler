@@ -21,7 +21,7 @@ usage(int res, std::string const &msg = "")
                 {
                     -m <measconfig_file.json>
 
-                    | 
+                    |
 
                     [-d <device = /dev/ttyUSB0>]
                     [-l <line_config ="9600:8:N:1">]
@@ -140,11 +140,11 @@ int main(int argc, char *argv[])
         return single_read(address, regspec);
     }
 
-    auto measconfig = measure::read_config(options::measconfig_file);
+    auto meas_descriptors = measure::read_config(options::measconfig_file);
 
-    for (auto const &el: measconfig)
+    for (auto const &el: meas_descriptors)
     {
-        std::cout << "Server: " << el.first << " -> " << el.second[0].name << '\n';
+        std::cout << "Server: " << el.first << " -> " << el.second.modbus_server.line_config << '\n';
     }
 
     return 0;
