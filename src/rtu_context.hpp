@@ -100,7 +100,7 @@ class SerialLine
         }
 
         if (parts.size() != 4)
-            throw std::runtime_error("Invalid line config: " + iss.str());
+            throw std::invalid_argument("Invalid line config: " + iss.str());
 
         return std::tuple<int, int, char, int>{std::stoi(parts[0]),
                                                std::stoi(parts[1]),
@@ -172,7 +172,7 @@ public:
     int64_t read_input_registers(int address, int regsize, word_endianess endianess)
     {
         if (regsize > 4)
-            throw std::runtime_error("Invalid regsize: " +
+            throw std::invalid_argument("Invalid regsize: " +
                                      std::to_string(regsize));
 
         uint16_t regs[4]{};
@@ -194,7 +194,7 @@ public:
     int64_t read_holding_registers(int address, int regsize, word_endianess endianess)
     {
         if (regsize > 4)
-            throw std::runtime_error("Invalid regsize: " +
+            throw std::invalid_argument("Invalid regsize: " +
                                      std::to_string(regsize));
 
         uint16_t regs[4]{};
