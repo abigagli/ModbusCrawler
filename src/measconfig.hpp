@@ -79,9 +79,12 @@ inline from_json(json const &j, server_t &s)
     j.at("serial_device").get_to(s.serial_device);
 
     // Handle the optionality...
-    if (auto lc_it = j.find("line_config"); lc_it != j.end())
+    auto const lc_it = j.find("line_config");
+    if (lc_it != j.end())
         lc_it->get_to(s.line_config);
-    if (auto at_it = j.find("answering_time_ms"); at_it != j.end())
+
+    auto const at_it = j.find("answering_time_ms");
+    if (at_it != j.end())
         at_it->get_to(s.answering_time);
 }
 
