@@ -19,12 +19,14 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
           [this, &modbus_cxt, meas](tsc::TaskContext tc) mutable {
               if (true)
               {
-                  auto const nowsecs = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::system_clock::now());
+                  auto const nowsecs =
+                    std::chrono::time_point_cast<std::chrono::seconds>(
+                      std::chrono::system_clock::now());
 
                   std::cout << nowsecs.time_since_epoch().count() << ": "
                             << modbus_cxt.name() << "@" << modbus_cxt.id()
                             << ": reading register " << meas.source.address
-                            << "#" << meas.source.size << " for the "
+                            << "#" << meas.source.size << " repeat #"
                             << tc.GetRepeatCounter() << " time: ";
               }
 
@@ -47,31 +49,17 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
               }
               catch (std::exception &e)
               {
-                std::cerr << "******** FAILED *******\n";
+                  std::cerr << "******** FAILED *******\n";
               }
 
-            tc.Repeat();
-
+              tc.Repeat();
           });
     }
+}
 
-    }
-
-    int scheduler::run_loop(std::chrono::milliseconds update_period)
-    {
-    // impl_.Schedule(std::chrono::seconds(3), [](TaskContext context)
-    //                    {
-    //                    std::cout << "******** EXCUTING PERIOD 3 # " << context.GetRepeatCounter() << " ********\n";
-
-    //                    context.Repeat();
-    //                    });
-
-    // impl_.Schedule(std::chrono::seconds(2), [](TaskContext context)
-    //                    {
-    //                    std::cout << "******** EXCUTING PERIOD 2 # " << context.GetRepeatCounter() << " ********\n";
-
-    //                    context.Repeat();
-    //                    });
+int
+scheduler::run_loop(std::chrono::milliseconds update_period)
+{
     while (true)
     {
         impl_.Update();
@@ -79,5 +67,5 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
     }
 
     return 0;
-    }
+}
 }// namespace measure
