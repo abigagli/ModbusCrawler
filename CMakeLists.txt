@@ -20,12 +20,22 @@ if (USE_ASIO_BASED_SCHEDULER)
     set (Boost_USE_STATIC_LIBS OFF)
     find_package (Boost 1.67 REQUIRED)
 
+    # See comment below fow why we need to add Threads as an explicit dep...
+    find_package (Threads)
+
     target_sources (${APPLICATION_TARGET_NAME}
         PRIVATE
         src/periodic_scheduler.cpp
         )
-    target_compile_definitions (${APPLICATION_TARGET_NAME} PRIVATE USE_ASIO_BASED_SCHEDULER)
-    target_link_libraries (${APPLICATION_TARGET_NAME} PRIVATE Boost::headers)
+
+    target_compile_definitions (${APPLICATION_TARGET_NAME}
+        PRIVATE
+        USE_ASIO_BASED_SCHEDULER)
+
+    target_link_libraries (${APPLICATION_TARGET_NAME}
+        PRIVATE
+        Boost::headers
+        Threads::Threads) #<<--- Omitting this makes linking fail on Linux: See https://discourse.cmake.org/t/boost-process-target-doesnt-exist-for-thread-linking/2113
 else()
     #find_package (TaskScheduler 1.0 REQUIRED)
 
