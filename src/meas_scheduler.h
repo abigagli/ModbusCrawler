@@ -3,16 +3,23 @@
 #include "meas_config.h"
 #include "rtu_context.hpp"
 
+#if defined (USE_ASIO_BASED_SCHEDULER)
+#include "periodic_scheduler.h"
+#else
 #include <TaskScheduler.hpp>
+#include <thread>
+#endif
 
-#include <tuple>
 #include <chrono>
-
 
 namespace measure {
 class scheduler
 {
+#if defined (USE_ASIO_BASED_SCHEDULER)
+    PeriodicScheduler impl_;
+#else
     tsc::TaskScheduler impl_;
+#endif
     std::map<measure::server_id_t, modbus::RTUContext> mbcxts_;
     bool verbose_;
 
