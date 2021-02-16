@@ -18,7 +18,9 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                     std::chrono::time_point_cast<std::chrono::seconds>(
                       std::chrono::system_clock::now());
 
-                  std::cout << nowsecs.time_since_epoch().count() << ": "
+                  auto const period = meas.sampling_period.count();
+
+                  std::cout << nowsecs.time_since_epoch().count() << "->" << period << ' '
                             << modbus_cxt.name() << "@" << modbus_cxt.id()
                             << ": reading register " << meas.source.address
                             << "#" << meas.source.size << ": ";
