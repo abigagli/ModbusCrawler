@@ -6,7 +6,7 @@ set (APPLICATION_TARGET_NAME mbcrawler)
 include(GNUInstallDirs)
 include(FetchContent)
 
-option (USE_ASIO_BASED_SCHEDULER OFF)
+option (USE_ASIO_BASED_SCHEDULER "" ON)
 
 set (CMAKE_CXX_STANDARD 17)
 
