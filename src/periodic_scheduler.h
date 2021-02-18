@@ -1,5 +1,10 @@
 #pragma once
+
+#if defined (ASIO_STANDALONE)
+#include <asio.hpp>
+#else
 #include <boost/asio.hpp>
+#endif
 
 #include <functional>
 #include <chrono>
@@ -8,6 +13,12 @@
 
 
 namespace measure {
+#if defined (ASIO_STANDALONE)
+    using asio::error_code;
+#else
+    using namespace boost;
+    using system::error_code;
+#endif
 
 using task_t = std::function<void()>;
 
@@ -19,20 +30,20 @@ public:
     periodic_task& operator=(periodic_task const &) = delete;
 
 
-    periodic_task(boost::asio::io_context& io_context
+    periodic_task(asio::io_context& io_context
         , std::string const& name
         , std::chrono::seconds interval
         , task_t const &task);
 
-    void execute(boost::system::error_code const& e);
+    void execute(error_code const& e);
 
     void start();
 
 private:
     void start_wait();
 
-    boost::asio::io_context& io_context_;
-    boost::asio::steady_timer timer_;
+    asio::io_context& io_context_;
+    asio::steady_timer timer_;
     task_t task_;
     std::string name_;
     std::chrono::seconds interval_;
@@ -49,7 +60,7 @@ public:
         , task_t const& task);
 
 private:
-    boost::asio::io_context io_context_;
+    asio::io_context io_context_;
     std::vector<std::unique_ptr<detail::periodic_task>> tasks_;
 };
 }// namespace measure

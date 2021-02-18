@@ -5,8 +5,11 @@ set (APPLICATION_TARGET_NAME mbcrawler)
 
 include(GNUInstallDirs)
 include(FetchContent)
+include(CMakeDependentOption)
 
 option (USE_ASIO_BASED_SCHEDULER "" ON)
+
+cmake_dependent_option (USE_STANDALONE_ASIO "" ON USE_ASIO_BASED_SCHEDULER OFF)
 
 set (CMAKE_CXX_STANDARD 17)
 
@@ -15,11 +18,6 @@ add_executable (${APPLICATION_TARGET_NAME})
 set (FIND_LIBRARY_USE_LIB64_PATHS TRUE)
 
 if (USE_ASIO_BASED_SCHEDULER)
-    set (Boost_USE_MULTITHREADED ON)
-    set (Boost_NO_BOOST_CMAKE ON)
-    set (Boost_USE_STATIC_LIBS OFF)
-    find_package (Boost 1.67 REQUIRED)
-
     # See comment below fow why we need to add Threads as an explicit dep...
     find_package (Threads)
 
@@ -34,9 +32,42 @@ if (USE_ASIO_BASED_SCHEDULER)
 
     target_link_libraries (${APPLICATION_TARGET_NAME}
         PRIVATE
-        Boost::headers
         Threads::Threads) #<<--- Omitting this makes linking fail on Linux: See https://discourse.cmake.org/t/boost-process-target-doesnt-exist-for-thread-linking/2113
-else()
+
+    if (USE_STANDALONE_ASIO)
+        message(STATUS "******* STANDALONE ASIO *******")
+        FetchContent_Declare(
+            asio
+            URL https://sourceforge.net/projects/asio/files/asio/1.18.1%20%28Stable%29/asio-1.18.1.tar.gz
+            URL_MD5 656a1decf9f6995b74a95966263cb4f7
+            SOURCE_DIR asio-src
+            )
+
+        FetchContent_MakeAvailable(asio)
+
+        target_include_directories (${APPLICATION_TARGET_NAME}
+            PRIVATE
+            ${CMAKE_CURRENT_BINARY_DIR}/asio-src/include
+            )
+
+        target_compile_definitions (${APPLICATION_TARGET_NAME}
+            PRIVATE
+            ASIO_STANDALONE)
+
+    else(USE_STANDALONE_ASIO)
+        message(STATUS "******* BOOST ASIO *******")
+        set (Boost_USE_MULTITHREADED ON)
+        set (Boost_NO_BOOST_CMAKE ON)
+        set (Boost_USE_STATIC_LIBS OFF)
+        find_package (Boost 1.67 REQUIRED)
+
+    target_link_libraries (${APPLICATION_TARGET_NAME}
+        PRIVATE
+        Boost::headers)
+
+    endif(USE_STANDALONE_ASIO)
+
+else(USE_ASIO_BASED_SCHEDULER)
     #find_package (TaskScheduler 1.0 REQUIRED)
 
     set (BUILD_TASKSCHEDULER_TESTAPP OFF CACHE STRING "")
@@ -47,7 +78,7 @@ else()
 
     FetchContent_MakeAvailable(TaskSchedulerPrj)
     target_link_libraries (${APPLICATION_TARGET_NAME} PRIVATE TaskScheduler::TaskScheduler)
-endif()
+endif(USE_ASIO_BASED_SCHEDULER)
 
 add_subdirectory(3rdParty)
 

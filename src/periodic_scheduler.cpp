@@ -3,7 +3,7 @@
 namespace measure {
 namespace detail {
 
-periodic_task::periodic_task(boost::asio::io_context& io_context
+periodic_task::periodic_task(asio::io_context& io_context
     , std::string const& name
     , std::chrono::seconds interval
     , task_t const &task)
@@ -19,9 +19,9 @@ periodic_task::periodic_task(boost::asio::io_context& io_context
                     });
 }
 
-void periodic_task::execute(boost::system::error_code const& e)
+void periodic_task::execute(error_code const& e)
 {
-    if (e != boost::asio::error::operation_aborted)
+    if (e != asio::error::operation_aborted)
     {
         task_();
 
@@ -41,7 +41,7 @@ void periodic_task::start()
 
 void periodic_task::start_wait()
 {
-    timer_.async_wait([this](boost::system::error_code const &e) {
+    timer_.async_wait([this](error_code const &e) {
                         execute(e);
                         });
 }
