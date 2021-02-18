@@ -79,7 +79,7 @@ to_val(uint16_t const *regs, int regsize, word_be_tag)
 
     return val;
 }
-}// namespace unnamed
+}// namespace detail
 
 class SerialLine
 {
@@ -117,7 +117,7 @@ public:
     }
 };
 
-using namespace std::string_literals;
+using std::string_literals::operator""s;
 class RTUContext
 {
     struct ctx_deleter

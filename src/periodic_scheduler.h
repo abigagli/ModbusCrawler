@@ -14,10 +14,13 @@
 
 namespace measure {
 #if defined (ASIO_STANDALONE)
+    using asio::io_context;
+    using asio::steady_timer;
     using asio::error_code;
 #else
-    using namespace boost;
-    using system::error_code;
+    using boost::asio::io_context;
+    using boost::asio::steady_timer;
+    using boost::system::error_code;
 #endif
 
 using task_t = std::function<void()>;
@@ -30,7 +33,7 @@ public:
     periodic_task& operator=(periodic_task const &) = delete;
 
 
-    periodic_task(asio::io_context& io_context
+    periodic_task(io_context& io_context
         , std::string const& name
         , std::chrono::seconds interval
         , task_t const &task);
@@ -42,8 +45,8 @@ public:
 private:
     void start_wait();
 
-    asio::io_context& io_context_;
-    asio::steady_timer timer_;
+    io_context& io_context_;
+    steady_timer timer_;
     task_t task_;
     std::string name_;
     std::chrono::seconds interval_;
@@ -60,7 +63,7 @@ public:
         , task_t const& task);
 
 private:
-    asio::io_context io_context_;
+    io_context io_context_;
     std::vector<std::unique_ptr<detail::periodic_task>> tasks_;
 };
 }// namespace measure

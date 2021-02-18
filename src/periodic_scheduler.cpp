@@ -1,9 +1,14 @@
 #include "periodic_scheduler.h"
 
 namespace measure {
+
+#if !defined (ASIO_STANDALONE)
+    using namespace boost;
+#endif
+
 namespace detail {
 
-periodic_task::periodic_task(asio::io_context& io_context
+periodic_task::periodic_task(io_context& io_context
     , std::string const& name
     , std::chrono::seconds interval
     , task_t const &task)

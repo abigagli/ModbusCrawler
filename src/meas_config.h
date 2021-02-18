@@ -10,7 +10,7 @@
 
 namespace measure
 {
-using namespace std::chrono_literals;
+using std::chrono_literals::operator""ms;
 struct modbus_server_t
 {
     int modbus_id;
