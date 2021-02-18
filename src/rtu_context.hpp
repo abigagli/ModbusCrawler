@@ -117,7 +117,6 @@ public:
     }
 };
 
-using std::string_literals::operator""s;
 class RTUContext
 {
     struct ctx_deleter
@@ -180,7 +179,7 @@ public:
         modbus_set_slave(ctx_.get(), server_id);
 
         if (modbus_connect(ctx_.get()) < 0)
-            throw std::runtime_error("Failed modbus_connect: "s +
+            throw std::runtime_error(std::string("Failed modbus_connect: ") +
                                      modbus_strerror(errno));
     }
 
@@ -198,7 +197,7 @@ public:
                                       regs); // Input register: Code 03
 
         if (api_rv != regsize)
-            throw std::runtime_error("Failed modbus_read_input_registers: "s +
+            throw std::runtime_error(std::string("Failed modbus_read_input_registers: ") +
                                      modbus_strerror(errno));
 
         return endianess == word_endianess::little
@@ -219,7 +218,7 @@ public:
                                            regs); // Holding register: Code 03
 
         if (api_rv != regsize)
-            throw std::runtime_error("Failed modbus_read_registers: "s +
+            throw std::runtime_error(std::string("Failed modbus_read_registers: ") +
                                      modbus_strerror(errno));
 
         return endianess == word_endianess::little

@@ -10,7 +10,6 @@
 
 namespace measure
 {
-using std::chrono_literals::operator""ms;
 struct modbus_server_t
 {
     int modbus_id;
@@ -19,7 +18,7 @@ struct modbus_server_t
 
     // Optionally present in json, so they have default values
     std::string line_config = "9600:8:N:1";
-    std::chrono::milliseconds answering_time = 500ms;
+    std::chrono::milliseconds answering_time{500};
 };
 
 struct measure_t
