@@ -88,13 +88,14 @@ target_sources (${APPLICATION_TARGET_NAME}
     src/main.cpp
     src/meas_config.cpp
     src/meas_scheduler.cpp
-    $<$<CONFIG:Debug>:${CMAKE_SOURCE_DIR}/compile_commands.json> #<-- Having this as a dependency will cause the custom command below to execute...
+    ${CMAKE_SOURCE_DIR}/compile_commands.json #<-- Having this as a dependency will cause the custom command below to execute...
     )
 
 # Since this custom command's OUTPUT is a dependency of our executable target
 # the custom command itself will be executed at build time to produce such OUTPUT 
 add_custom_command (OUTPUT ${CMAKE_SOURCE_DIR}/compile_commands.json
-    COMMAND ln -s ${CMAKE_BINARY_DIR}/compile_commands.json ${CMAKE_SOURCE_DIR}
+    COMMAND ln -sf ${CMAKE_BINARY_DIR}/compile_commands.json ${CMAKE_SOURCE_DIR}
+    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
     COMMENT "Symlinking compile_commands.json"
     )
 
