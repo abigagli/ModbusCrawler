@@ -1,85 +1,99 @@
 #pragma once
 #include "modbus_types.h"
-#include <nlohmann/json.hpp>
 
-#include <modbus.h>
-#include <memory>
-#include <string>
-#include <sstream>
-#include <vector>
-#include <tuple>
 #include <cassert>
 #include <chrono>
 #include <functional>
+#include <memory>
+#include <modbus.h>
+#include <nlohmann/json.hpp>
+#include <random>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace modbus {
 
 namespace detail {
-struct word_be_tag{};
-struct word_le_tag{};
+    struct word_be_tag
+    {};
+    struct word_le_tag
+    {};
 
-inline int64_t
-to_val(uint16_t const *regs, int regsize, word_le_tag)
-{
-    int64_t val;
-    switch (regsize)
+    inline int64_t to_val(uint16_t const *regs, int regsize, word_le_tag)
     {
-    case 1:
-        val = regs[0];
-        break;
-    case 2:
-        val = static_cast<int64_t>(regs[1]) << 16 | regs[0];
-        break;
-    case 3:
-        val = static_cast<int64_t>(regs[2]) << 32 |
-              static_cast<int64_t>(regs[1]) << 16 | regs[0];
-        break;
-    case 4:
-        if (regs[3] > std::numeric_limits<int16_t>::max())
-            throw std::overflow_error("MSB of 64bit value too big: " + std::to_string(regs[3]));
+        int64_t val;
+        switch (regsize)
+        {
+        case 1:
+            val = regs[0];
+            break;
+        case 2:
+            val = static_cast<int64_t>(regs[1]) << 16 | regs[0];
+            break;
+        case 3:
+            val = static_cast<int64_t>(regs[2]) << 32 |
+                  static_cast<int64_t>(regs[1]) << 16 | regs[0];
+            break;
+        case 4:
+            if (regs[3] > std::numeric_limits<int16_t>::max())
+                throw std::overflow_error("MSB of 64bit value too big: " +
+                                          std::to_string(regs[3]));
 
-        val = static_cast<int64_t>(regs[3]) << 48 |
-              static_cast<int64_t>(regs[2]) << 32 |
-              static_cast<int64_t>(regs[1]) << 16 | regs[0];
-        break;
-    default:
-        assert(!"regsize not supported");
+            val = static_cast<int64_t>(regs[3]) << 48 |
+                  static_cast<int64_t>(regs[2]) << 32 |
+                  static_cast<int64_t>(regs[1]) << 16 | regs[0];
+            break;
+        default:
+            assert(!"regsize not supported");
+        }
+
+        return val;
     }
 
-    return val;
-}
-
-inline int64_t
-to_val(uint16_t const *regs, int regsize, word_be_tag)
-{
-    int64_t val;
-    switch (regsize)
+    inline int64_t to_val(uint16_t const *regs, int regsize, word_be_tag)
     {
-    case 1:
-        val = regs[0];
-        break;
-    case 2:
-        val = static_cast<int64_t>(regs[0]) << 16 | regs[1];
-        break;
-    case 3:
-        val = static_cast<int64_t>(regs[0]) << 32 |
-              static_cast<int64_t>(regs[1]) << 16 | regs[2];
-        break;
-    case 4:
-        if (regs[0] > std::numeric_limits<int16_t>::max())
-            throw std::overflow_error("MSB of 64bit value too big: " + std::to_string(regs[0]));
+        int64_t val;
+        switch (regsize)
+        {
+        case 1:
+            val = regs[0];
+            break;
+        case 2:
+            val = static_cast<int64_t>(regs[0]) << 16 | regs[1];
+            break;
+        case 3:
+            val = static_cast<int64_t>(regs[0]) << 32 |
+                  static_cast<int64_t>(regs[1]) << 16 | regs[2];
+            break;
+        case 4:
+            if (regs[0] > std::numeric_limits<int16_t>::max())
+                throw std::overflow_error("MSB of 64bit value too big: " +
+                                          std::to_string(regs[0]));
 
-        val = static_cast<int64_t>(regs[0]) << 48 |
-              static_cast<int64_t>(regs[1]) << 32 |
-              static_cast<int64_t>(regs[2]) << 16 | regs[3];
-        break;
-    default:
-        assert(!"regsize not supported");
+            val = static_cast<int64_t>(regs[0]) << 48 |
+                  static_cast<int64_t>(regs[1]) << 32 |
+                  static_cast<int64_t>(regs[2]) << 16 | regs[3];
+            break;
+        default:
+            assert(!"regsize not supported");
+        }
+
+        return val;
     }
 
-    return val;
-}
-}// namespace detail
+    template <class T>
+    class RandomSource
+    {
+        std::normal_distribution<T> d;
+        std::default_random_engine engine;
+
+    public:
+        RandomSource(T mean, T stdev) : d(mean, stdev) {}
+        T operator()() { return d(engine); }
+    };
+} // namespace detail
 
 class SerialLine
 {
@@ -117,8 +131,46 @@ public:
     }
 };
 
+class RandomParams
+{
+    friend class RTUContext;
+    double mean_;
+    double stdev_;
+
+    auto unpack_random_config(std::istringstream iss)
+    {
+        std::vector<std::string> parts;
+        std::string elem;
+        while (std::getline(iss, elem, ':'))
+        {
+            parts.push_back(elem);
+        }
+
+        if (parts.size() != 2)
+            throw std::invalid_argument("Invalid random config: " + iss.str());
+
+        return std::tuple<double, double>{std::stod(parts[0]),
+                                          std::stod(parts[1])};
+    }
+
+public:
+    RandomParams(std::string const &random_config)
+    {
+        std::tie(mean_, stdev_) =
+          unpack_random_config(std::istringstream(random_config));
+    }
+};
+
 class RTUContext
 {
+public:
+    enum DataSource
+    {
+        Modbus,
+        Random
+    };
+
+private:
     struct ctx_deleter
     {
         void operator()(modbus_t *ctx)
@@ -128,45 +180,61 @@ class RTUContext
         }
     };
 
-    std::unique_ptr<modbus_t, ctx_deleter> ctx_;
     int modbus_id_;
     std::string server_name_;
 
+
+    DataSource data_source_;
+    std::unique_ptr<modbus_t, ctx_deleter> modbus_source_;
+    std::unique_ptr<detail::RandomSource<double>> random_source_;
+
+    RTUContext(int server_id, std::string server_name, DataSource data_source)
+      : modbus_id_(server_id)
+      , server_name_(std::move(server_name))
+      , data_source_(data_source)
+    {}
+
 public:
-    std::string const &name() const noexcept
+    DataSource data_source() const noexcept { return data_source_; }
+
+    std::string const &name() const noexcept { return server_name_; }
+
+    int id() const noexcept { return modbus_id_; }
+
+    RTUContext(int server_id,
+               std::string server_name,
+               RandomParams const &random_params,
+               bool verbose = false)
+      : RTUContext(server_id, std::move(server_name), DataSource::Random)
     {
-        return server_name_;
+        random_source_.reset(new decltype(random_source_)::element_type(
+          random_params.mean_, random_params.stdev_));
     }
 
-    int id() const noexcept
-    {
-        return modbus_id_;
-    }
 
     RTUContext(int server_id,
                std::string server_name,
                SerialLine const &serial_line,
                std::chrono::milliseconds const &answering_time,
                bool verbose = false)
-               : modbus_id_(server_id)
-               , server_name_(std::move(server_name))
+      : RTUContext(server_id, std::move(server_name), DataSource::Modbus)
     {
-        ctx_.reset(modbus_new_rtu(serial_line.device_.c_str(),
-                                  serial_line.bps_,
-                                  serial_line.parity_,
-                                  serial_line.data_bits_,
-                                  serial_line.stop_bits_));
+        modbus_source_.reset(modbus_new_rtu(serial_line.device_.c_str(),
+                                            serial_line.bps_,
+                                            serial_line.parity_,
+                                            serial_line.data_bits_,
+                                            serial_line.stop_bits_));
 
-        if (!ctx_)
+        if (!modbus_source_)
             throw std::runtime_error("Failed creating ctx for device " +
                                      serial_line.device_);
 
         int api_rv;
         if (verbose)
-            api_rv = modbus_set_debug(ctx_.get(), TRUE);
+            api_rv = modbus_set_debug(modbus_source_.get(), TRUE);
 
         api_rv = modbus_set_error_recovery(
-          ctx_.get(),
+          modbus_source_.get(),
           static_cast<modbus_error_recovery_mode>(
             MODBUS_ERROR_RECOVERY_LINK | MODBUS_ERROR_RECOVERY_PROTOCOL));
 
@@ -175,64 +243,73 @@ public:
         auto microseconds = std::chrono::microseconds(answering_time - seconds);
 
         modbus_set_response_timeout(
-          ctx_.get(), seconds.count(), microseconds.count());
-        modbus_set_slave(ctx_.get(), server_id);
+          modbus_source_.get(), seconds.count(), microseconds.count());
+        modbus_set_slave(modbus_source_.get(), server_id);
 
-        if (modbus_connect(ctx_.get()) < 0)
+        if (modbus_connect(modbus_source_.get()) < 0)
             throw std::runtime_error(std::string("Failed modbus_connect: ") +
                                      modbus_strerror(errno));
     }
 
-    int64_t read_input_registers(int address, int regsize, word_endianess endianess)
+    int64_t read_input_registers(int address,
+                                 int regsize,
+                                 word_endianess endianess)
     {
         if (regsize > 4)
             throw std::invalid_argument("Invalid regsize: " +
-                                     std::to_string(regsize));
+                                        std::to_string(regsize));
 
         uint16_t regs[4]{};
         int api_rv =
-          modbus_read_input_registers(ctx_.get(),
+          modbus_read_input_registers(modbus_source_.get(),
                                       address,
                                       regsize,
-                                      regs); // Input register: Code 03
+                                      regs); // Input register: Code 04
 
         if (api_rv != regsize)
-            throw std::runtime_error(std::string("Failed modbus_read_input_registers: ") +
-                                     modbus_strerror(errno));
+            throw std::runtime_error(
+              std::string("Failed modbus_read_input_registers: ") +
+              modbus_strerror(errno));
 
         return endianess == word_endianess::little
                  ? to_val(regs, regsize, detail::word_le_tag{})
                  : to_val(regs, regsize, detail::word_be_tag{});
     }
 
-    int64_t read_holding_registers(int address, int regsize, word_endianess endianess)
+    int64_t read_holding_registers(int address,
+                                   int regsize,
+                                   word_endianess endianess)
     {
         if (regsize > 4)
             throw std::invalid_argument("Invalid regsize: " +
-                                     std::to_string(regsize));
+                                        std::to_string(regsize));
 
         uint16_t regs[4]{};
-        int api_rv = modbus_read_registers(ctx_.get(),
+        int api_rv = modbus_read_registers(modbus_source_.get(),
                                            address,
                                            regsize,
                                            regs); // Holding register: Code 03
 
         if (api_rv != regsize)
-            throw std::runtime_error(std::string("Failed modbus_read_registers: ") +
-                                     modbus_strerror(errno));
+            throw std::runtime_error(
+              std::string("Failed modbus_read_registers: ") +
+              modbus_strerror(errno));
 
         return endianess == word_endianess::little
                  ? to_val(regs, regsize, detail::word_le_tag{})
                  : to_val(regs, regsize, detail::word_be_tag{});
     }
 
+    auto read_random_value() const { return (*random_source_)(); }
+
     template <class F, class... Args>
-    auto call(F &&callable, Args &&...args)
+    auto native_call(F &&callable, Args &&...args)
     {
-        return std::invoke(
-          std::forward<F>(callable), ctx_.get(), std::forward<Args>(args)...);
+        return std::invoke(std::forward<F>(callable),
+                           modbus_source_.get(),
+                           std::forward<Args>(args)...);
     }
 
-    modbus_t *native_handle() const noexcept { return ctx_.get(); }
+    modbus_t *native_handle() const noexcept { return modbus_source_.get(); }
 };
 } // namespace modbus

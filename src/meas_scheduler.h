@@ -39,16 +39,36 @@ public:
         {
             auto const &server_config = el.second.server;
 
-            auto cxt_insertion_result = mbcxts_.try_emplace(
-              // Key
-              server_config.modbus_id,
-              // Args for RTUContext ctor
-              server_config.modbus_id,
-              server_config.name,
-              modbus::SerialLine(server_config.serial_device,
-                                 server_config.line_config),
-              server_config.answering_time,
-              verbose_);
+            auto cxt_insertion_result = [&]() {
+                if (server_config.serial_device.empty())
+                {
+                    // A for-testing-only RANDOM measurements generator
+
+                    return mbcxts_.try_emplace(
+                      // Key
+                      server_config.modbus_id,
+                      // Args for RANDOM-sourced-RTUContext ctor
+                      server_config.modbus_id,
+                      server_config.name,
+                      modbus::RandomParams(server_config.line_config),
+                      verbose_);
+                }
+                else
+                {
+                    // The real-modbus data source
+
+                    return mbcxts_.try_emplace(
+                      // Key
+                      server_config.modbus_id,
+                      // Args for MODBUS-sourced-RTUContext ctor
+                      server_config.modbus_id,
+                      server_config.name,
+                      modbus::SerialLine(server_config.serial_device,
+                                         server_config.line_config),
+                      server_config.answering_time,
+                      verbose_);
+                }
+            }();
 
 
             if (!cxt_insertion_result.second)
