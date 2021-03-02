@@ -135,7 +135,7 @@ read_config(std::string const &measconfig_file)
 
     std::map<server_id_t, descriptor_t> measure_descriptors;
 
-    for (auto const &desc: j.get<std::vector<descriptor_t>>())
+    for (auto &desc: j.get<std::vector<descriptor_t>>())
     {
         auto const server_id = desc.server.modbus_id;
         bool added;

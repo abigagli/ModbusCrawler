@@ -3,13 +3,12 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <numeric>
 
 namespace measure {
 void
-Report::add_entry(server_key_t const &sk,
-                  std::string const &meas_name,
-                  descriptor_t descriptor)
+Reporter::add_entry(server_key_t const &sk,
+                    std::string const &meas_name,
+                    descriptor_t descriptor)
 {
     auto &results_for_server = results_[sk];
 
@@ -24,10 +23,10 @@ Report::add_entry(server_key_t const &sk,
 }
 
 void
-Report::add_measurement(server_key_t const &sk,
-                        std::string const &meas_name,
-                        when_t when,
-                        double value)
+Reporter::add_measurement(server_key_t const &sk,
+                          std::string const &meas_name,
+                          when_t when,
+                          double value)
 {
     auto server_it = results_.find(sk);
 
@@ -50,7 +49,7 @@ Report::add_measurement(server_key_t const &sk,
 }
 
 void
-Report::close_period()
+Reporter::close_period()
 {
     for (auto &el: results_)
     {
@@ -73,8 +72,8 @@ Report::close_period()
     }
 }
 
-Report::stats_t
-Report::calculate_stats(decltype(data_t::samples) const &samples) const
+Reporter::stats_t
+Reporter::calculate_stats(decltype(data_t::samples) const &samples)
 {
     double sum = 0;
     double min = std::numeric_limits<double>::max();

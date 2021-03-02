@@ -86,11 +86,12 @@ namespace detail {
     template <class T>
     class RandomSource
     {
+        std::random_device r;
         std::normal_distribution<T> d;
         std::default_random_engine engine;
 
     public:
-        RandomSource(T mean, T stdev) : d(mean, stdev) {}
+        RandomSource(T mean, T stdev) : d(mean, stdev) , engine(r()){}
         T operator()() { return d(engine); }
     };
 } // namespace detail
@@ -104,7 +105,7 @@ class SerialLine
     char parity_;
     int stop_bits_;
 
-    auto unpack_line_config(std::istringstream iss)
+    static auto unpack_line_config(std::istringstream iss)
     {
         std::vector<std::string> parts;
         std::string elem;
@@ -124,7 +125,7 @@ class SerialLine
 
 public:
     SerialLine(std::string device, std::string const &line_config)
-      : device_(device)
+      : device_(std::move(device))
     {
         std::tie(bps_, data_bits_, parity_, stop_bits_) =
           unpack_line_config(std::istringstream(line_config));
@@ -137,7 +138,7 @@ class RandomParams
     double mean_;
     double stdev_;
 
-    auto unpack_random_config(std::istringstream iss)
+    static auto unpack_random_config(std::istringstream iss)
     {
         std::vector<std::string> parts;
         std::string elem;
@@ -154,7 +155,7 @@ class RandomParams
     }
 
 public:
-    RandomParams(std::string const &random_config)
+    explicit RandomParams(std::string const &random_config)
     {
         std::tie(mean_, stdev_) =
           unpack_random_config(std::istringstream(random_config));
@@ -164,12 +165,6 @@ public:
 class RTUContext
 {
 public:
-    enum DataSource
-    {
-        Modbus,
-        Random
-    };
-
 private:
     struct ctx_deleter
     {
@@ -184,28 +179,24 @@ private:
     std::string server_name_;
 
 
-    DataSource data_source_;
     std::unique_ptr<modbus_t, ctx_deleter> modbus_source_;
     std::unique_ptr<detail::RandomSource<double>> random_source_;
 
-    RTUContext(int server_id, std::string server_name, DataSource data_source)
+    RTUContext(int server_id, std::string server_name)
       : modbus_id_(server_id)
       , server_name_(std::move(server_name))
-      , data_source_(data_source)
     {}
 
 public:
-    DataSource data_source() const noexcept { return data_source_; }
+    [[nodiscard]] std::string const &name() const noexcept { return server_name_; }
 
-    std::string const &name() const noexcept { return server_name_; }
-
-    int id() const noexcept { return modbus_id_; }
+    [[nodiscard]] int id() const noexcept { return modbus_id_; }
 
     RTUContext(int server_id,
                std::string server_name,
                RandomParams const &random_params,
                bool verbose = false)
-      : RTUContext(server_id, std::move(server_name), DataSource::Random)
+      : RTUContext(server_id, std::move(server_name))
     {
         random_source_.reset(new decltype(random_source_)::element_type(
           random_params.mean_, random_params.stdev_));
@@ -217,7 +208,7 @@ public:
                SerialLine const &serial_line,
                std::chrono::milliseconds const &answering_time,
                bool verbose = false)
-      : RTUContext(server_id, std::move(server_name), DataSource::Modbus)
+      : RTUContext(server_id, std::move(server_name))
     {
         modbus_source_.reset(modbus_new_rtu(serial_line.device_.c_str(),
                                             serial_line.bps_,
@@ -300,7 +291,7 @@ public:
                  : to_val(regs, regsize, detail::word_be_tag{});
     }
 
-    auto read_random_value() const { return (*random_source_)(); }
+    [[nodiscard]] auto read_random_value() const { return (*random_source_)(); }
 
     template <class F, class... Args>
     auto native_call(F &&callable, Args &&...args)
@@ -310,6 +301,6 @@ public:
                            std::forward<Args>(args)...);
     }
 
-    modbus_t *native_handle() const noexcept { return modbus_source_.get(); }
+    [[nodiscard]] modbus_t *native_handle() const noexcept { return modbus_source_.get(); }
 };
 } // namespace modbus

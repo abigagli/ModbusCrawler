@@ -12,14 +12,14 @@ using namespace boost;
 namespace detail {
 
     periodic_task::periodic_task(io_context& io_context,
-                                 std::string const& name,
+                                 std::string name,
                                  std::chrono::seconds interval,
-                                 task_t const& task,
+                                 task_t task,
                                  bool execute_at_start /* = true */)
       : io_context_(io_context)
       , timer_(io_context)
-      , task_(task)
-      , name_(name)
+      , task_(std::move(task))
+      , name_(std::move(name))
       , interval_(interval)
     {
         // Schedule start to be ran by the io_context
@@ -57,8 +57,8 @@ namespace detail {
     void periodic_task::cancel() { timer_.cancel(); }
 } // namespace detail
 
-int
-PeriodicScheduler::run(Report& report, std::chrono::seconds reporting_period)
+unsigned long
+PeriodicScheduler::run(Reporter& report, std::chrono::seconds reporting_period)
 {
     /*
     detail::periodic_task killer(

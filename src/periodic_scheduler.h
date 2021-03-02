@@ -33,9 +33,9 @@ namespace detail {
 
 
         periodic_task(io_context& io_context,
-                      std::string const& name,
+                      std::string name,
                       std::chrono::seconds interval,
-                      task_t const& task,
+                      task_t task,
                       bool execute_at_start = true);
 
         void execute(error_code const& e);
@@ -54,11 +54,11 @@ namespace detail {
     };
 } // namespace detail
 
-class Report;
+class Reporter;
 class PeriodicScheduler
 {
 public:
-    int run(Report& report, std::chrono::seconds reporting_period);
+    unsigned long run(Reporter& report, std::chrono::seconds reporting_period);
 
     void addTask(std::string const& name,
                  std::chrono::seconds interval,

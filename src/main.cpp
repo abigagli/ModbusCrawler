@@ -38,6 +38,8 @@ usage(int res, std::string const &msg = "")
 }
 } // namespace
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "cert-err58-cpp"
 namespace options {
 namespace defaults {
     std::string const device      = "/dev/ttyUSB0";
@@ -58,6 +60,7 @@ std::string line_config = defaults::line_config;
 int server_id           = -1;
 auto answering_time     = defaults::answering_time;
 } // namespace options
+#pragma clang diagnostic pop
 
 int
 single_read(int address, std::string regspec)
@@ -96,6 +99,8 @@ single_read(int address, std::string regspec)
     return 0;
 }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "concurrency-mt-unsafe"
 int
 main(int argc, char *argv[])
 {
@@ -130,14 +135,12 @@ main(int argc, char *argv[])
             break;
         case '?':
             return usage(-1);
-            break;
         case 'h':
         default:
             return usage(0);
         }
     }
 
-    auto const *prog_name = argv[0];
     argc -= optind;
     argv += optind;
 
@@ -153,7 +156,7 @@ main(int argc, char *argv[])
 
     auto meas_config = measure::read_config(options::measconfig_file);
 
-    measure::Report report;
+    measure::Reporter report;
 
     for (auto const &el: meas_config)
     {
@@ -167,7 +170,9 @@ main(int argc, char *argv[])
     }
 
     measure::scheduler scheduler(
-      report, std::move(meas_config), options::verbose);
+      report, meas_config, options::verbose);
 
-    return scheduler.run_loop(options::reporting_period);
+    scheduler.run_loop(options::reporting_period);
+    return 0;
 }
+#pragma clang diagnostic pop

@@ -7,7 +7,7 @@
 #include <utility>
 
 namespace measure {
-class Report
+class Reporter
 {
 public:
     using when_t =
@@ -16,7 +16,7 @@ public:
     {
         std::string server_name;
         int server_id;
-        std::string to_string() const
+        [[nodiscard]] std::string to_string() const
         {
             return server_name + "@" + std::to_string(server_id);
         }
@@ -39,11 +39,9 @@ private:
 
     struct data_t
     {
-        data_t() { reset(); }
-
         std::vector<std::pair<when_t, double>> samples;
-        size_t num_failures;
-        stats_t statistics;
+        size_t num_failures{};
+        stats_t statistics{};
 
         void reset()
         {
@@ -55,7 +53,7 @@ private:
 
     struct result_t
     {
-        result_t(descriptor_t desc) : descriptor(desc) {}
+        explicit result_t(descriptor_t desc) : descriptor(desc) {}
         descriptor_t descriptor;
         data_t data;
     };
@@ -64,7 +62,7 @@ private:
 
     std::map<server_key_t, std::map<meas_key_t, result_t>> results_;
 
-    stats_t calculate_stats(decltype(data_t::samples) const &samples) const;
+    [[nodiscard]] static stats_t calculate_stats(decltype(data_t::samples) const &samples);
 
 public:
     void add_entry(server_key_t const &sk,
@@ -80,7 +78,7 @@ public:
 };
 
 inline bool
-operator<(Report::server_key_t const &lhs, Report::server_key_t const &rhs)
+operator<(Reporter::server_key_t const &lhs, Reporter::server_key_t const &rhs)
 {
     return std::tie(lhs.server_name, lhs.server_id) <
            std::tie(rhs.server_name, rhs.server_id);
