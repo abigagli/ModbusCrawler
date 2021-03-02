@@ -1,10 +1,11 @@
-#include "rtu_context.hpp"
 #include "meas_config.h"
+#include "meas_report.h"
 #include "meas_scheduler.h"
+#include "rtu_context.hpp"
 
+#include <chrono>
 #include <iostream>
 #include <string>
-#include <chrono>
 #include <unistd.h>
 
 using namespace std::chrono_literals;
@@ -21,7 +22,7 @@ usage(int res, std::string const &msg = "")
                 [-v(erbose)]
                 {
                     -m <measconfig_file.json>
-                    [-u <runloop update period ms = 200>]
+                    [-r <reporting period = 60s>]
 
                     |
 
@@ -37,30 +38,29 @@ usage(int res, std::string const &msg = "")
 }
 } // namespace
 
-namespace options
-{
-    namespace defaults
-    {
-        std::string const device = "/dev/ttyUSB0";
-        bool const verbose = false;
-        std::string const line_config = "9600:8:N:1";
-        auto const answering_time = 500ms;
-        auto const runloop_update_period = 200ms;
-    }// namespace defaults
+namespace options {
+namespace defaults {
+    std::string const device      = "/dev/ttyUSB0";
+    bool const verbose            = false;
+    std::string const line_config = "9600:8:N:1";
+    auto const answering_time     = 500ms;
+    auto const reporting_period   = 60s;
+} // namespace defaults
 
-    // Measure mode
-    std::string measconfig_file;
-    std::chrono::milliseconds runloop_update_period = defaults::runloop_update_period;
+// Measure mode
+std::string measconfig_file;
+std::chrono::seconds reporting_period = defaults::reporting_period;
 
-    // Single-shot reads
-    std::string device = defaults::device;
-    bool verbose = defaults::verbose;
-    std::string line_config = defaults::line_config;
-    int server_id = -1;
-    auto answering_time = defaults::answering_time;
-}// namespace options
+// Single-shot reads
+std::string device      = defaults::device;
+bool verbose            = defaults::verbose;
+std::string line_config = defaults::line_config;
+int server_id           = -1;
+auto answering_time     = defaults::answering_time;
+} // namespace options
 
-int single_read (int address, std::string regspec)
+int
+single_read(int address, std::string regspec)
 {
     int const regsize = regspec[0] - '0';
     modbus::word_endianess word_endianess;
@@ -73,9 +73,8 @@ int single_read (int address, std::string regspec)
         if (regspec.size() != 2 || (regspec[1] != 'l' && regspec[1] != 'b'))
             return usage(-1, "invalid regsize specification: " + regspec);
 
-        word_endianess = regspec[1] == 'l'
-                                    ? modbus::word_endianess::little
-                                    : modbus::word_endianess::big;
+        word_endianess = regspec[1] == 'l' ? modbus::word_endianess::little
+                                           : modbus::word_endianess::big;
     }
     else
         word_endianess = modbus::word_endianess::dontcare;
@@ -90,48 +89,51 @@ int single_read (int address, std::string regspec)
     // if (options::address >= 40000)
     //     options::address -= 40000;
 
-    int64_t const val = ctx.read_holding_registers (address, regsize, word_endianess);
+    int64_t const val =
+      ctx.read_holding_registers(address, regsize, word_endianess);
 
     std::cout << "REGISTER " << address << ": " << val << '\n';
     return 0;
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
     g_prog_name = argv[0];
-    optind = 1;
+    optind      = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "hd:vl:s:a:m:u:")) != -1)
+    while ((ch = getopt(argc, argv, "hd:vl:s:a:m:r:")) != -1)
     {
         switch (ch)
         {
-            case 'd':
-                options::device = optarg;
-                break;
-            case 'v':
-                options::verbose = true;
-                break;
-            case 'l':
-                options::line_config = optarg;
-                break;
-            case 's':
-                options::server_id = std::stoi(optarg);
-                break;
-            case 'a':
-                options::answering_time = std::chrono::milliseconds(std::stoi(optarg));
-                break;
-            case 'm':
-                options::measconfig_file = optarg;
-                break;
-            case 'u':
-                options::runloop_update_period = std::chrono::milliseconds(std::stoi(optarg));
-                break;
-            case '?':
-                return usage(-1);
-                break;
-            case 'h':
-            default:
-                return usage(0);
+        case 'd':
+            options::device = optarg;
+            break;
+        case 'v':
+            options::verbose = true;
+            break;
+        case 'l':
+            options::line_config = optarg;
+            break;
+        case 's':
+            options::server_id = std::stoi(optarg);
+            break;
+        case 'a':
+            options::answering_time =
+              std::chrono::milliseconds(std::stoi(optarg));
+            break;
+        case 'm':
+            options::measconfig_file = optarg;
+            break;
+        case 'r':
+            options::reporting_period = std::chrono::seconds(std::stoi(optarg));
+            break;
+        case '?':
+            return usage(-1);
+            break;
+        case 'h':
+        default:
+            return usage(0);
         }
     }
 
@@ -151,7 +153,21 @@ int main(int argc, char *argv[])
 
     auto meas_config = measure::read_config(options::measconfig_file);
 
-    measure::scheduler scheduler(std::move(meas_config), options::verbose);
+    measure::Report report;
 
-    return scheduler.run_loop(options::runloop_update_period);
+    for (auto const &el: meas_config)
+    {
+        auto const &server   = el.second.server;
+        auto const &measures = el.second.measures;
+
+        for (auto const &meas: measures)
+            report.add_entry({server.name, server.modbus_id},
+                             meas.name,
+                             {meas.sampling_period, meas.accumulating});
+    }
+
+    measure::scheduler scheduler(
+      report, std::move(meas_config), options::verbose);
+
+    return scheduler.run_loop(options::reporting_period);
 }

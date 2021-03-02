@@ -1,10 +1,15 @@
 #include "meas_scheduler.h"
 
+#include "meas_report.h"
+
+#include <cmath>
 #include <iostream>
 #include <thread>
 
 constexpr bool logging = true;
+
 namespace measure {
+
 void
 scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                         std::vector<measure_t> const &measures)
@@ -12,27 +17,28 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
     for (auto const &meas: measures)
     {
         auto const meas_task = [this, &modbus_cxt, meas]() {
+            Report::when_t const nowsecs =
+              std::chrono::time_point_cast<Report::when_t::duration>(
+                Report::when_t::clock::now());
+
             if (logging)
             {
-                auto const nowsecs =
-                  std::chrono::time_point_cast<std::chrono::seconds>(
-                    std::chrono::system_clock::now());
-
                 auto const period = meas.sampling_period.count();
 
-                std::cout << nowsecs.time_since_epoch().count() << "->"
+                std::cerr << nowsecs.time_since_epoch().count() << "->"
                           << period << ' ' << modbus_cxt.name() << "@"
                           << modbus_cxt.id() << " " << meas.name;
             }
 
-            double measurement;
+            double measurement = std::numeric_limits<double>::quiet_NaN();
             if (meas.source)
             {
+                // Normal case: reading from a real modbus device
                 auto const source_value = meas.source.value();
 
                 if (logging)
                 {
-                    std::cout << ": reading register " << source_value.address
+                    std::cerr << ": reading register " << source_value.address
                               << "#" << source_value.size << ": ";
                 }
 
@@ -49,25 +55,30 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                           source_value.address,
                           source_value.size,
                           source_value.endianess);
+
+                    measurement = reg_value * source_value.scale_factor;
                 }
                 catch (std::exception &e)
                 {
                     std::cerr << "******** FAILED *******\n";
-                    return;
                 }
-                measurement = reg_value * source_value.scale_factor;
             }
             else
             {
+                // Testing case: get some random numbers
                 if (logging)
                 {
-                    std::cout << ": ";
+                    std::cerr << ": ";
                 }
                 measurement = modbus_cxt.read_random_value();
             }
 
+            report_.add_measurement({modbus_cxt.name(), modbus_cxt.id()},
+                                    meas.name,
+                                    nowsecs,
+                                    measurement);
             if (logging)
-                std::cout << measurement << '\n';
+                std::cerr << measurement << '\n';
         };
 
 #if defined(USE_ASIO_BASED_SCHEDULER)
@@ -87,18 +98,18 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
 }
 
 #if defined(USE_ASIO_BASED_SCHEDULER)
-int scheduler::run_loop(std::chrono::milliseconds)
+int
+scheduler::run_loop(std::chrono::seconds reporting_period)
 {
-    return impl_.run();
+    return impl_.run(report_, reporting_period);
 }
 #else
-int
-scheduler::run_loop(std::chrono::milliseconds update_period)
+int scheduler::run_loop(std::chrono::seconds)
 {
     while (true)
     {
         impl_.Update();
-        std::this_thread::sleep_for(update_period);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     return 0;

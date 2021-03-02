@@ -14,6 +14,8 @@
 #include <unordered_map>
 
 namespace measure {
+
+struct Report;
 class scheduler
 {
 #if defined(USE_ASIO_BASED_SCHEDULER)
@@ -27,13 +29,16 @@ class scheduler
     // which works with (non-const) modbus_t *
     std::unordered_map<measure::server_id_t, modbus::RTUContext> mbcxts_;
     bool verbose_;
+    Report &report_;
 
     void add_schedule(modbus::RTUContext &modbus_cxt,
                       std::vector<measure_t> const &measures);
 
 public:
-    scheduler(configuration_map_t const &configmap, bool verbose = false)
-      : verbose_(verbose)
+    scheduler(Report &report,
+              configuration_map_t const &configmap,
+              bool verbose = false)
+      : verbose_(verbose), report_(report)
     {
         for (auto const &el: configmap)
         {
@@ -81,6 +86,6 @@ public:
         }
     }
 
-    int run_loop(std::chrono::milliseconds update_period);
+    int run_loop(std::chrono::seconds reporting_period);
 };
 } // namespace measure
