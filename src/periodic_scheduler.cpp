@@ -1,6 +1,6 @@
 #include "periodic_scheduler.h"
 
-#include "meas_report.h"
+#include "meas_reporter.h"
 
 #include <iostream>
 

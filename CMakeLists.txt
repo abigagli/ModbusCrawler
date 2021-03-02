@@ -90,7 +90,7 @@ target_sources (${APPLICATION_TARGET_NAME}
     src/main.cpp
     src/meas_config.cpp
     src/meas_scheduler.cpp
-    src/meas_report.cpp
+    src/meas_reporter.cpp
     ${CMAKE_SOURCE_DIR}/compile_commands.json #<-- Having this as a dependency will cause the custom command below to execute...
     )
 
