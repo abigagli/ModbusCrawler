@@ -91,7 +91,7 @@ namespace detail {
         std::default_random_engine engine;
 
     public:
-        RandomSource(T mean, T stdev) : d(mean, stdev) , engine(r()){}
+        RandomSource(T mean, T stdev) : d(mean, stdev), engine(r()) {}
         T operator()() { return d(engine); }
     };
 } // namespace detail
@@ -183,12 +183,14 @@ private:
     std::unique_ptr<detail::RandomSource<double>> random_source_;
 
     RTUContext(int server_id, std::string server_name)
-      : modbus_id_(server_id)
-      , server_name_(std::move(server_name))
+      : modbus_id_(server_id), server_name_(std::move(server_name))
     {}
 
 public:
-    [[nodiscard]] std::string const &name() const noexcept { return server_name_; }
+    [[nodiscard]] std::string const &name() const noexcept
+    {
+        return server_name_;
+    }
 
     [[nodiscard]] int id() const noexcept { return modbus_id_; }
 
@@ -301,6 +303,9 @@ public:
                            std::forward<Args>(args)...);
     }
 
-    [[nodiscard]] modbus_t *native_handle() const noexcept { return modbus_source_.get(); }
+    [[nodiscard]] modbus_t *native_handle() const noexcept
+    {
+        return modbus_source_.get();
+    }
 };
 } // namespace modbus

@@ -15,4 +15,4 @@ enum class regtype
     holding,
     input
 };
-}// namespace modbus
+} // namespace modbus

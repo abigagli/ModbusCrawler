@@ -169,8 +169,7 @@ main(int argc, char *argv[])
                              {meas.sampling_period, meas.accumulating});
     }
 
-    measure::scheduler scheduler(
-      report, meas_config, options::verbose);
+    measure::scheduler scheduler(report, meas_config, options::verbose);
 
     scheduler.run_loop(options::reporting_period);
     return 0;
