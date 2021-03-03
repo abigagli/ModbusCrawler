@@ -26,6 +26,7 @@ public:
     {
         std::chrono::seconds period;
         bool accumulating;
+        bool contains_raw_samples;
     };
 
 private:

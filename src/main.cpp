@@ -166,7 +166,7 @@ main(int argc, char *argv[])
         for (auto const &meas: measures)
             report.add_entry({server.name, server.modbus_id},
                              meas.name,
-                             {meas.sampling_period, meas.accumulating});
+                             {meas.sampling_period, meas.accumulating, meas.report_raw_samples});
     }
 
     measure::scheduler scheduler(report, meas_config, options::verbose);

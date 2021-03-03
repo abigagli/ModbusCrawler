@@ -41,9 +41,10 @@ struct source_register_t
 struct measure_t
 {
     std::string name;
-    bool accumulating = false;
-    std::chrono::seconds sampling_period;
     optional<source_register_t> source;
+    std::chrono::seconds sampling_period;
+    bool accumulating = false;
+    bool report_raw_samples = false;
 };
 
 struct descriptor_t

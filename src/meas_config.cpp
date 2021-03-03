@@ -99,7 +99,8 @@ to_json(json &j, measure_t const &m)
 {
     j = json{{"name", m.name},
              {"accumulating", m.accumulating},
-             {"sampling_period", m.sampling_period}};
+             {"sampling_period", m.sampling_period},
+             {"report_raw_samples", m.report_raw_samples}};
     if (m.source)
     {
         j["source"] = m.source.value();
@@ -114,6 +115,10 @@ from_json(json const &j, measure_t &m)
     auto acc_it = j.find("accumulating");
     if (acc_it != j.end())
         acc_it->get_to(m.accumulating);
+
+    auto report_raw_it = j.find("report_raw_samples");
+    if (report_raw_it != j.end())
+        report_raw_it->get_to(m.report_raw_samples);
 
     j.at("sampling_period").get_to(m.sampling_period);
 
