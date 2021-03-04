@@ -1,5 +1,6 @@
 #include "meas_reporter.h"
 
+#include "json_support.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -17,16 +18,6 @@ struct adl_serializer<std::pair<measure::Reporter::when_t, double>>
         j = json{{"timepoint", p.first.time_since_epoch().count()},
                  {"value", p.second}};
     }
-};
-
-
-// We got this already implemented in meas_config.cpp, so let's just let the
-// compiler it's available...
-template <class Rep, class Period>
-struct adl_serializer<std::chrono::duration<Rep, Period>>
-{
-    static void to_json(json &j, std::chrono::duration<Rep, Period> const &d);
-    static void from_json(json const &j, std::chrono::duration<Rep, Period> &d);
 };
 } // namespace nlohmann
 

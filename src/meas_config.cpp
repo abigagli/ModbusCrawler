@@ -1,24 +1,10 @@
 #include "meas_config.h"
 
+#include "json_support.h"
 #include <nlohmann/json.hpp>
 #include <tuple>
 
 using json = nlohmann::json;
-
-namespace nlohmann {
-template <class Rep, class Period>
-struct adl_serializer<std::chrono::duration<Rep, Period>>
-{
-    static void to_json(json &j, std::chrono::duration<Rep, Period> const &d)
-    {
-        j = d.count();
-    }
-    static void from_json(json const &j, std::chrono::duration<Rep, Period> &d)
-    {
-        d = std::chrono::duration<Rep, Period>(j.get<Rep>());
-    }
-};
-} // namespace nlohmann
 
 namespace modbus {
 NLOHMANN_JSON_SERIALIZE_ENUM(word_endianess,
