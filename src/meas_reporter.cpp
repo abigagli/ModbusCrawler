@@ -1,6 +1,7 @@
 #include "meas_reporter.h"
 
 #include "json_support.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -93,6 +94,7 @@ Reporter::close_period()
 
             /** Fill result_t::data **/
             json jdata{{"num_failures", result.data.num_failures}};
+            jdata["num_samples"] = result.data.samples.size();
 
             if (!result.data.samples.empty())
                 result.data.statistics = calculate_stats(result.data.samples);
