@@ -166,8 +166,21 @@ main(int argc, char *argv[])
         for (auto const &meas: measures)
             report.add_entry({server.name, server.modbus_id},
                              meas.name,
-                             {meas.sampling_period, meas.accumulating, meas.report_raw_samples});
+                             {meas.sampling_period,
+                              meas.accumulating,
+                              meas.report_raw_samples});
     }
+
+    /*********************************************
+    measure::Reporter::when_t const nowsecs =
+            std::chrono::time_point_cast<measure::Reporter::when_t::duration>(
+                    measure::Reporter::when_t::clock::now());
+    for (int i = 0; i < 5; ++i)
+        report.add_measurement({"RANDOM", 666}, "Value 1", nowsecs +
+    std::chrono::seconds(i), 3.14 + i);
+
+    report.close_period();
+    *********************************************/
 
     measure::scheduler scheduler(report, meas_config, options::verbose);
 

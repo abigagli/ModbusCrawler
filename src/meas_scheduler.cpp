@@ -19,7 +19,7 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
         auto const meas_task = [this, &modbus_cxt, meas]() {
             Reporter::when_t const nowsecs =
               std::chrono::time_point_cast<Reporter::when_t::duration>(
-                      Reporter::when_t::clock::now());
+                Reporter::when_t::clock::now());
 
             if (logging)
             {
@@ -56,7 +56,8 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                           source_value.size,
                           source_value.endianess);
 
-                    measurement = static_cast<double>(reg_value) * source_value.scale_factor;
+                    measurement = static_cast<double>(reg_value) *
+                                  source_value.scale_factor;
                 }
                 catch (std::exception &e)
                 {

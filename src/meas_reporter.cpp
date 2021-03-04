@@ -3,8 +3,39 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <nlohmann/json.hpp>
+
+using nlohmann::json;
+
+namespace nlohmann {
+template <>
+struct adl_serializer<std::pair<measure::Reporter::when_t, double>>
+{
+    static void to_json(json &j,
+                        std::pair<measure::Reporter::when_t, double> const &p)
+    {
+        j = json{{"timepoint", p.first.time_since_epoch().count()},
+                 {"value", p.second}};
+    }
+};
+
+
+// We got this already implemented in meas_config.cpp, so let's just let the
+// compiler it's available...
+template <class Rep, class Period>
+struct adl_serializer<std::chrono::duration<Rep, Period>>
+{
+    static void to_json(json &j, std::chrono::duration<Rep, Period> const &d);
+    static void from_json(json const &j, std::chrono::duration<Rep, Period> &d);
+};
+} // namespace nlohmann
 
 namespace measure {
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Reporter::descriptor_t,
+                                   period,
+                                   accumulating,
+                                   report_raw_samples)
+
 void
 Reporter::add_entry(server_key_t const &sk,
                     std::string const &meas_name,
@@ -51,25 +82,51 @@ Reporter::add_measurement(server_key_t const &sk,
 void
 Reporter::close_period()
 {
-    for (auto &el: results_)
+    json jreport;
+    for (auto &server_el: results_)
     {
-        std::string server       = el.first.to_string();
-        auto &results_for_server = el.second;
+        json jmeasure;
+        std::string server_name = server_el.first.to_string();
 
-        for (auto &result: results_for_server)
+        for (auto &result_el: server_el.second)
         {
-            auto &statistics = result.second.data.statistics =
-              calculate_stats(result.second.data.samples);
+            auto &meas_name = result_el.first;
+            auto &result    = result_el.second;
 
-            std::cout << server << ": " << result.second.data.samples.size()
-                      << ", " << result.second.data.num_failures << ": "
-                      << statistics.min << ", " << statistics.max << ", "
-                      << statistics.mean << ", " << statistics.stdev
-                      << std::endl;
+            json jresult;
+            /** Fill result_t::descriptor **/
+            json jdescriptor(result.descriptor);
 
-            result.second.data.reset();
+            jresult["descriptor"] = std::move(jdescriptor);
+            /*******************************/
+
+            /** Fill result_t::data **/
+            json jdata{{"num_failures", result.data.num_failures}};
+
+            if (!result.data.samples.empty())
+                result.data.statistics = calculate_stats(result.data.samples);
+
+            jdata["statistics"] = {{"min", result.data.statistics.min},
+                                   {"max", result.data.statistics.max},
+                                   {"mean", result.data.statistics.mean},
+                                   {"stdev", result.data.statistics.stdev}};
+            if (result.descriptor.report_raw_samples)
+                jdata["samples"] = result.data.samples;
+
+            jresult["data"] = std::move(jdata);
+            /************************/
+
+            // Attach result_t to the measure name
+            jmeasure[result_el.first] = std::move(jresult);
+
+            // Reset data, ready for next period
+            result.data.reset();
         }
+
+        jreport[server_name] = std::move(jmeasure);
     }
+
+    std::cout << jreport.dump(2) << std::flush;
 }
 
 Reporter::stats_t

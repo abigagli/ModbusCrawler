@@ -43,7 +43,7 @@ struct measure_t
     std::string name;
     optional<source_register_t> source;
     std::chrono::seconds sampling_period;
-    bool accumulating = false;
+    bool accumulating       = false;
     bool report_raw_samples = false;
 };
 

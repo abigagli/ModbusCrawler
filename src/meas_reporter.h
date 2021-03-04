@@ -2,6 +2,7 @@
 
 #include "meas_config.h"
 
+#include <limits>
 #include <map>
 #include <tuple>
 #include <utility>
@@ -26,16 +27,16 @@ public:
     {
         std::chrono::seconds period;
         bool accumulating;
-        bool contains_raw_samples;
+        bool report_raw_samples;
     };
 
 private:
     struct stats_t
     {
-        double min;
-        double max;
-        double mean;
-        double stdev;
+        double min   = std::numeric_limits<double>::quiet_NaN();
+        double max   = std::numeric_limits<double>::quiet_NaN();
+        double mean  = std::numeric_limits<double>::quiet_NaN();
+        double stdev = std::numeric_limits<double>::quiet_NaN();
     };
 
     struct data_t
@@ -63,7 +64,8 @@ private:
 
     std::map<server_key_t, std::map<meas_key_t, result_t>> results_;
 
-    [[nodiscard]] static stats_t calculate_stats(decltype(data_t::samples) const &samples);
+    [[nodiscard]] static stats_t calculate_stats(decltype(data_t::samples)
+                                                   const &samples);
 
 public:
     void add_entry(server_key_t const &sk,
