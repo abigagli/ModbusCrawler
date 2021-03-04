@@ -22,6 +22,15 @@ struct adl_serializer<std::pair<measure::Reporter::when_t, double>>
 };
 } // namespace nlohmann
 
+namespace {
+double
+fixed_digits(double number, int digits)
+{
+    auto const factor = std::pow(10, digits);
+    return std::round(number * factor) / static_cast<double>(factor);
+}
+} // namespace
+
 namespace measure {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Reporter::descriptor_t,
                                    period,
@@ -99,10 +108,11 @@ Reporter::close_period()
             if (!result.data.samples.empty())
                 result.data.statistics = calculate_stats(result.data.samples);
 
-            jdata["statistics"] = {{"min", result.data.statistics.min},
-                                   {"max", result.data.statistics.max},
-                                   {"mean", result.data.statistics.mean},
-                                   {"stdev", result.data.statistics.stdev}};
+            jdata["statistics"] = {
+              {"min", fixed_digits(result.data.statistics.min, 3)},
+              {"max", fixed_digits(result.data.statistics.max, 3)},
+              {"mean", fixed_digits(result.data.statistics.mean, 3)},
+              {"stdev", fixed_digits(result.data.statistics.stdev, 3)}};
             if (result.descriptor.report_raw_samples)
                 jdata["samples"] = result.data.samples;
 
