@@ -127,7 +127,7 @@ Reporter::calculate_stats(decltype(data_t::samples) const &samples)
 {
     double sum = 0;
     double min = std::numeric_limits<double>::max();
-    double max = std::numeric_limits<double>::min();
+    double max = std::numeric_limits<double>::lowest();
 
     std::for_each(std::begin(samples), std::end(samples), [&](auto const &el) {
         sum += el.second;
