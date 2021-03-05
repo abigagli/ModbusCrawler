@@ -86,7 +86,7 @@ Reporter::close_period()
     when_t const nowsecs =
       std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
 
-    json jreport{{"when", nowsecs}, {"periods"}, periods_};
+    json jreport{{"when", nowsecs}, {"periods", periods_}};
     for (auto &server_el: results_)
     {
         json jmeasure;
