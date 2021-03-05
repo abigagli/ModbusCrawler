@@ -79,7 +79,7 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                                     meas.name,
                                     nowsecs,
                                     measurement);
-            if (logging)
+            if (logging && !std::isnan(measurement))
                 std::cerr << measurement << '\n';
         };
 
