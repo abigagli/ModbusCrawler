@@ -33,7 +33,7 @@ namespace detail {
         {
             task_();
 
-            timer_.expires_at(timer_.expires_at() + interval_);
+            timer_.expires_at(timer_.expiry() + interval_);
             start_wait();
         }
         else
@@ -45,7 +45,7 @@ namespace detail {
         if (execute_at_start)
             task_();
 
-        timer_.expires_from_now(interval_);
+        timer_.expires_after(interval_);
         start_wait();
     }
 
