@@ -16,8 +16,7 @@ struct adl_serializer<std::pair<measure::Reporter::when_t, double>>
     static void to_json(json &j,
                         std::pair<measure::Reporter::when_t, double> const &p)
     {
-        j = json{{"timepoint", p.first.time_since_epoch().count()},
-                 {"value", p.second}};
+        j = json{{"t", p.first}, {"v", p.second}};
     }
 };
 } // namespace nlohmann
@@ -83,7 +82,10 @@ Reporter::add_measurement(server_key_t const &sk,
 void
 Reporter::close_period()
 {
-    json jreport;
+    when_t const nowsecs =
+      std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
+
+    json jreport{{"when", nowsecs}};
     for (auto &server_el: results_)
     {
         json jmeasure;
@@ -129,7 +131,7 @@ Reporter::close_period()
         jreport[server_name] = std::move(jmeasure);
     }
 
-    std::cout << jreport.dump(2) << std::flush;
+    std::cout << jreport.dump(2) << std::endl;
 }
 
 Reporter::stats_t
