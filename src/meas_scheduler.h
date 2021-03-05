@@ -44,7 +44,8 @@ public:
         {
             auto const &server_config = el.second.server;
 
-            auto cxt_insertion_result = [&]() {
+            auto cxt_insertion_result = [&]()
+            {
                 if (server_config.serial_device.empty())
                 {
                     // A for-testing-only RANDOM measurements generator

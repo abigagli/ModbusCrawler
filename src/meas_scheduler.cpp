@@ -16,7 +16,8 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
 {
     for (auto const &meas: measures)
     {
-        auto const meas_task = [this, &modbus_cxt, meas]() {
+        auto const meas_task = [this, &modbus_cxt, meas]()
+        {
             Reporter::when_t const nowsecs =
               std::chrono::time_point_cast<Reporter::when_t::duration>(
                 Reporter::when_t::clock::now());
@@ -90,7 +91,8 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
 #else
         impl_.Schedule(meas.sampling_period,
                        modbus_cxt.id(),
-                       [meas_task](tsc::TaskContext tc) {
+                       [meas_task](tsc::TaskContext tc)
+                       {
                            meas_task();
                            tc.Repeat();
                        });

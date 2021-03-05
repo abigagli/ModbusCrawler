@@ -139,18 +139,22 @@ Reporter::calculate_stats(decltype(data_t::samples) const &samples)
     double min = std::numeric_limits<double>::max();
     double max = std::numeric_limits<double>::lowest();
 
-    std::for_each(std::begin(samples), std::end(samples), [&](auto const &el) {
-        sum += el.second;
-        min = std::min(min, el.second);
-        max = std::max(max, el.second);
-    });
+    std::for_each(std::begin(samples),
+                  std::end(samples),
+                  [&](auto const &el)
+                  {
+                      sum += el.second;
+                      min = std::min(min, el.second);
+                      max = std::max(max, el.second);
+                  });
 
     double const mean = sum / static_cast<double>(samples.size());
 
     double accum = 0.0;
-    std::for_each(std::begin(samples), std::end(samples), [&](auto const &el) {
-        accum += (el.second - mean) * (el.second - mean);
-    });
+    std::for_each(std::begin(samples),
+                  std::end(samples),
+                  [&](auto const &el)
+                  { accum += (el.second - mean) * (el.second - mean); });
 
     // We calculated mean from the data, so divide by (size - 1).
     // See http://duramecho.com/Misc/WhyMinusOneInSd.html

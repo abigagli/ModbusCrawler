@@ -23,8 +23,8 @@ namespace detail {
       , interval_(interval)
     {
         // Schedule start to be ran by the io_context
-        io_context_.post(
-          [this, execute_at_start]() { start(execute_at_start); });
+        io_context_.post([this, execute_at_start]()
+                         { start(execute_at_start); });
     }
 
     void periodic_task::execute(error_code const& e)
