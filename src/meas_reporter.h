@@ -48,8 +48,7 @@ private:
         void reset()
         {
             samples.clear();
-            num_failures = 0;
-            statistics   = {};
+            statistics = {};
         }
     };
 
