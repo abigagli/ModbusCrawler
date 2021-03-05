@@ -159,5 +159,4 @@ Reporter::calculate_stats(decltype(data_t::samples) const &samples)
     return {min, max, mean, stdev};
 }
 
-
 } // namespace measure
