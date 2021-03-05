@@ -62,6 +62,7 @@ private:
     using meas_key_t = std::string;
 
     std::map<server_key_t, std::map<meas_key_t, result_t>> results_;
+    unsigned int periods_ = 0;
 
     [[nodiscard]] static stats_t calculate_stats(decltype(data_t::samples)
                                                    const &samples);

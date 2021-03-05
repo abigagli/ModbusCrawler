@@ -82,10 +82,11 @@ Reporter::add_measurement(server_key_t const &sk,
 void
 Reporter::close_period()
 {
+    ++periods_;
     when_t const nowsecs =
       std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
 
-    json jreport{{"when", nowsecs}};
+    json jreport{{"when", nowsecs}, {"periods"}, periods_};
     for (auto &server_el: results_)
     {
         json jmeasure;
