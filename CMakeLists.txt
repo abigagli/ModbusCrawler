@@ -66,6 +66,7 @@ endif (USE_STANDALONE_ASIO)
 
 target_link_libraries (${APPLICATION_TARGET_NAME}
     PRIVATE
+    ${CMAKE_DL_LIBS}
     MODBUS::static
     nlohmann_json::nlohmann_json
     Threads::Threads) #<<--- Omitting this makes linking fail on Linux: See https://discourse.cmake.org/t/boost-process-target-doesnt-exist-for-thread-linking/2113
