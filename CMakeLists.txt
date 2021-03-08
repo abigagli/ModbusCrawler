@@ -29,7 +29,7 @@ target_sources (${APPLICATION_TARGET_NAME}
     PRIVATE
     src/main.cpp
     src/meas_config.cpp
-    src/meas_scheduler.cpp
+    src/meas_executor.cpp
     src/meas_reporter.cpp
     src/json_support.cpp
     src/periodic_scheduler.cpp

@@ -1,21 +1,18 @@
 #include "periodic_scheduler.h"
 
-#include "meas_reporter.h"
-
 #include <iostream>
 
-namespace measure {
+namespace infra {
 
 #if !defined(ASIO_STANDALONE)
 using namespace boost;
 #endif
-namespace detail {
 
-    periodic_task::periodic_task(io_context& io_context,
+    PeriodicScheduler::scheduled_task::scheduled_task(io_context& io_context,
                                  std::string name,
                                  std::chrono::seconds interval,
                                  task_t task,
-                                 bool execute_at_start /* = true */)
+                                 bool execute_at_start)
       : io_context_(io_context)
       , timer_(io_context)
       , task_(std::move(task))
@@ -27,7 +24,7 @@ namespace detail {
                          { start(execute_at_start); });
     }
 
-    void periodic_task::execute(error_code const& e)
+    void PeriodicScheduler::scheduled_task::execute(error_code const& e)
     {
         if (e != asio::error::operation_aborted)
         {
@@ -40,7 +37,7 @@ namespace detail {
             std::cout << "Periodic task " << name_ << " CANCELLED\n";
     }
 
-    void periodic_task::start(bool execute_at_start)
+    void PeriodicScheduler::scheduled_task::start(bool execute_at_start)
     {
         if (execute_at_start)
             task_();
@@ -49,16 +46,15 @@ namespace detail {
         start_wait();
     }
 
-    void periodic_task::start_wait()
+    void PeriodicScheduler::scheduled_task::start_wait()
     {
         timer_.async_wait([this](error_code const& e) { execute(e); });
     }
 
-    void periodic_task::cancel() { timer_.cancel(); }
-} // namespace detail
+    void PeriodicScheduler::scheduled_task::cancel() { timer_.cancel(); }
 
 unsigned long
-PeriodicScheduler::run(Reporter& report, std::chrono::seconds reporting_period)
+PeriodicScheduler::run()
 {
     /*
     detail::periodic_task killer(
@@ -91,23 +87,16 @@ PeriodicScheduler::run(Reporter& report, std::chrono::seconds reporting_period)
       },
       false);
     */
-    detail::periodic_task report_generator(
-      io_context_,
-      "ReportGenerator",
-      reporting_period,
-      [&report]() { report.close_period(); },
-      false);
-
     return io_context_.run();
 }
 
 void
 PeriodicScheduler::addTask(std::string const& name,
                            std::chrono::seconds interval,
-                           task_t const& task)
+                           task_t const& task,
+                           bool execute_at_start)
 {
-    tasks_.push_back(std::make_unique<detail::periodic_task>(
-      io_context_, name, interval, task));
+    tasks_.push_back(std::make_unique<scheduled_task>(io_context_, name, interval, task, execute_at_start));
 }
 
-} // namespace measure
+} // namespace infra

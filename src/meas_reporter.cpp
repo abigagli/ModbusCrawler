@@ -37,7 +37,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Reporter::descriptor_t,
                                    report_raw_samples)
 
 void
-Reporter::add_entry(server_key_t const &sk,
+Reporter::configure_measurement(server_key_t const &sk,
                     std::string const &meas_name,
                     descriptor_t descriptor)
 {
@@ -49,7 +49,7 @@ Reporter::add_entry(server_key_t const &sk,
 
     if (!added)
         throw std::invalid_argument(
-          "add_entry: duplicate measure: " + meas_name + " for server " +
+          "configure_measurement: duplicate measure: " + meas_name + " for server " +
           sk.to_string());
 }
 

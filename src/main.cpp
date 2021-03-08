@@ -1,6 +1,7 @@
 #include "meas_config.h"
+#include "meas_executor.h"
 #include "meas_reporter.h"
-#include "meas_scheduler.h"
+#include "periodic_scheduler.h"
 #include "rtu_context.hpp"
 
 #include <chrono>
@@ -166,7 +167,7 @@ main(int argc, char *argv[])
 
     auto meas_config = measure::read_config(options::measconfig_file);
 
-    measure::Reporter report;
+    measure::Reporter reporter;
 
     for (auto const &el: meas_config)
     {
@@ -174,11 +175,11 @@ main(int argc, char *argv[])
         auto const &measures = el.second.measures;
 
         for (auto const &meas: measures)
-            report.add_entry({server.name, server.modbus_id},
-                             meas.name,
-                             {meas.sampling_period,
-                              meas.accumulating,
-                              meas.report_raw_samples});
+            reporter.configure_measurement({server.name, server.modbus_id},
+                               meas.name,
+                               {meas.sampling_period,
+                                meas.accumulating,
+                                meas.report_raw_samples});
     }
 
     /*********************************************
@@ -186,15 +187,22 @@ main(int argc, char *argv[])
             std::chrono::time_point_cast<measure::Reporter::when_t::duration>(
                     measure::Reporter::when_t::clock::now());
     for (int i = 0; i < 5; ++i)
-        report.add_measurement({"RANDOM", 666}, "Value 1", nowsecs +
+        reporter.add_measurement({"RANDOM", 666}, "Value 1", nowsecs +
     std::chrono::seconds(i), 3.14 + i);
 
-    report.close_period();
+    reporter.close_period();
     *********************************************/
+    infra::PeriodicScheduler scheduler;
 
-    measure::scheduler scheduler(report, meas_config);
+    scheduler.addTask(
+      "ReportGenerator",
+      options::reporting_period,
+      [&reporter]() { reporter.close_period(); },
+      false);
 
-    scheduler.run_loop(options::reporting_period);
+    measure::Executor measure_executor(scheduler, reporter, meas_config);
+
+    scheduler.run();
     return 0;
 }
 #pragma clang diagnostic pop

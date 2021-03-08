@@ -1,22 +1,22 @@
-#include "meas_scheduler.h"
+#include "meas_executor.h"
 
 #include "meas_reporter.h"
+#include "periodic_scheduler.h"
 
 #include <cmath>
 #include <sstream>
 #include <thread>
 
-constexpr bool logging = true;
-
 namespace measure {
 
 void
-scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
+Executor::add_schedule(infra::PeriodicScheduler &scheduler, Reporter &reporter,
+                        modbus::RTUContext &modbus_cxt,
                         std::vector<measure_t> const &measures)
 {
     for (auto const &meas: measures)
     {
-        auto const meas_task = [this, &modbus_cxt, meas]()
+        auto const meas_task = [this, &reporter, &modbus_cxt, meas]()
         {
             Reporter::when_t const nowsecs =
               std::chrono::time_point_cast<Reporter::when_t::duration>(
@@ -67,25 +67,21 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                 measurement = modbus_cxt.read_random_value();
             }
 
-            report_.add_measurement({modbus_cxt.name(), modbus_cxt.id()},
-                                    meas.name,
-                                    nowsecs,
-                                    measurement);
+            reporter.add_measurement({modbus_cxt.name(), modbus_cxt.id()},
+                                     meas.name,
+                                     nowsecs,
+                                     measurement);
 
             LOG_IF_S(INFO, !std::isnan(measurement))
               << msg.str() << measurement;
         };
 
-        impl_.addTask("Server_" + std::to_string(modbus_cxt.id()) + "/" +
-                        meas.name,
-                      meas.sampling_period,
-                      meas_task);
+        bool const execute_at_start = true;
+        scheduler.addTask("Server_" + std::to_string(modbus_cxt.id()) + "/" +
+                             meas.name,
+                           meas.sampling_period,
+                           meas_task,
+                           execute_at_start);
     }
-}
-
-unsigned long
-scheduler::run_loop(std::chrono::seconds reporting_period)
-{
-    return impl_.run(report_, reporting_period);
 }
 } // namespace measure

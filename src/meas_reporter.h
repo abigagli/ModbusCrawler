@@ -68,7 +68,7 @@ private:
                                                    const &samples);
 
 public:
-    void add_entry(server_key_t const &sk,
+    void configure_measurement(server_key_t const &sk,
                    std::string const &meas_name,
                    descriptor_t descriptor);
 
