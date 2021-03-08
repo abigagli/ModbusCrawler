@@ -9,4 +9,3 @@ FetchContent_Declare(json4cpp
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 FetchContent_MakeAvailable(json4cpp)
-

@@ -83,39 +83,16 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                 std::cerr << measurement << '\n';
         };
 
-#if defined(USE_ASIO_BASED_SCHEDULER)
         impl_.addTask("Server_" + std::to_string(modbus_cxt.id()) + "/" +
                         meas.name,
                       meas.sampling_period,
                       meas_task);
-#else
-        impl_.Schedule(meas.sampling_period,
-                       modbus_cxt.id(),
-                       [meas_task](tsc::TaskContext tc)
-                       {
-                           meas_task();
-                           tc.Repeat();
-                       });
-#endif
     }
 }
 
-#if defined(USE_ASIO_BASED_SCHEDULER)
 unsigned long
 scheduler::run_loop(std::chrono::seconds reporting_period)
 {
     return impl_.run(report_, reporting_period);
 }
-#else
-int scheduler::run_loop(std::chrono::seconds)
-{
-    while (true)
-    {
-        impl_.Update();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    return 0;
-}
-#endif
 } // namespace measure

@@ -1,14 +1,8 @@
 #pragma once
 
 #include "meas_config.h"
+#include "periodic_scheduler.h"
 #include "rtu_context.hpp"
-
-#if defined(USE_ASIO_BASED_SCHEDULER)
-#    include "periodic_scheduler.h"
-#else
-#    include <TaskScheduler.hpp>
-#    include <thread>
-#endif
 
 #include <chrono>
 #include <unordered_map>
@@ -18,11 +12,7 @@ namespace measure {
 class Reporter;
 class scheduler
 {
-#if defined(USE_ASIO_BASED_SCHEDULER)
     PeriodicScheduler impl_;
-#else
-    tsc::TaskScheduler impl_;
-#endif
     // An unorderd_set would be the right choice, as we're not going to need to
     // search through the container, but that would force const on all
     // the elements and that doesn't work well with the lower level modbus C-api
