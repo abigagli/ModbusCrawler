@@ -22,7 +22,7 @@ add_subdirectory(3rdParty)
 
 target_include_directories (${APPLICATION_TARGET_NAME}
     PRIVATE
-    ${CMAKE_BINARY_DIR}/3rdParty/loguru/loguru-src
+    ${CMAKE_CURRENT_BINARY_DIR}/3rdParty/loguru/loguru-src
     )
 
 target_sources (${APPLICATION_TARGET_NAME}
@@ -33,7 +33,7 @@ target_sources (${APPLICATION_TARGET_NAME}
     src/meas_reporter.cpp
     src/json_support.cpp
     src/periodic_scheduler.cpp
-    ${CMAKE_BINARY_DIR}/3rdParty/loguru/loguru-src/loguru.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/3rdParty/loguru/loguru-src/loguru.cpp
     ${CMAKE_SOURCE_DIR}/compile_commands.json #<-- Having this as a dependency will cause the custom command below to execute...
     )
 
@@ -45,15 +45,15 @@ target_sources (${APPLICATION_TARGET_NAME}
 # Since this custom command's OUTPUT is a dependency of our executable target
 # the custom command itself will be executed at build time to produce such OUTPUT 
 add_custom_command (OUTPUT ${CMAKE_SOURCE_DIR}/compile_commands.json
-    COMMAND ln -sf ${CMAKE_BINARY_DIR}/compile_commands.json ${CMAKE_SOURCE_DIR}
-    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
+    COMMAND ln -sf ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json ${CMAKE_SOURCE_DIR}
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
     COMMENT "Symlinking compile_commands.json"
     )
 
 if (USE_STANDALONE_ASIO)
     target_include_directories (${APPLICATION_TARGET_NAME}
         PRIVATE
-        ${CMAKE_BINARY_DIR}/3rdParty/asio/asio-src/include
+        ${CMAKE_CURRENT_BINARY_DIR}/3rdParty/asio/asio-src/include
         )
     target_compile_definitions (${APPLICATION_TARGET_NAME}
         PRIVATE
