@@ -45,8 +45,8 @@ target_sources (${APPLICATION_TARGET_NAME}
 # Since this custom command's OUTPUT is a dependency of our executable target
 # the custom command itself will be executed at build time to produce such OUTPUT 
 add_custom_command (OUTPUT ${CMAKE_SOURCE_DIR}/compile_commands.json
-    COMMAND ln -sf ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json ${CMAKE_SOURCE_DIR}
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
+    COMMAND ln -sf ${CMAKE_BINARY_DIR}/compile_commands.json ${CMAKE_SOURCE_DIR}
+    DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
     COMMENT "Symlinking compile_commands.json"
     )
 
