@@ -3,7 +3,6 @@
 #include "json_support.h"
 
 #include <nlohmann/json.hpp>
-#include <tuple>
 
 using json = nlohmann::json;
 
@@ -40,6 +39,10 @@ void
 from_json(json const &j, modbus_server_t &s)
 {
     auto serial_device_it = j.find("serial_device");
+
+    auto enabled_it = j.find("enabled");
+    if (enabled_it != j.end())
+        enabled_it->get_to(s.enabled);
 
     if (serial_device_it != j.end()) // A real modbus source
     {
@@ -99,6 +102,10 @@ from_json(json const &j, measure_t &m)
 {
     j.at("name").get_to(m.name);
 
+    auto enabled_it = j.find("enabled");
+    if (enabled_it != j.end())
+        enabled_it->get_to(m.enabled);
+
     auto acc_it = j.find("accumulating");
     if (acc_it != j.end())
         acc_it->get_to(m.accumulating);
@@ -129,15 +136,24 @@ read_config(std::string const &measconfig_file)
 
     for (auto &desc: j.get<std::vector<descriptor_t>>())
     {
+        if (!desc.server.enabled)
+            continue;
+
         auto const server_id = desc.server.modbus_id;
         bool added;
 
-        std::tie(std::ignore, added) =
+        auto insertion =
           measure_descriptors.try_emplace(server_id, std::move(desc));
 
-        if (!added)
+        if (!insertion.second)
             throw std::invalid_argument("Duplicate Modbus ID: " +
                                         std::to_string(server_id));
+
+        // Prune non-enabled measures
+        auto &measures = insertion.first->second.measures;
+        measures.erase(std::remove_if(std::begin(measures), std::end(measures), [](auto const &el) {
+                                          return !el.enabled;
+        }), std::end(measures));
     }
 
     return measure_descriptors;

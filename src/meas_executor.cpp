@@ -6,6 +6,7 @@
 #include <cmath>
 #include <sstream>
 #include <thread>
+#include <cassert>
 
 namespace measure {
 
@@ -16,6 +17,8 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler, Reporter &reporter,
 {
     for (auto const &meas: measures)
     {
+        assert (meas.enabled);
+
         auto const meas_task = [this, &reporter, &modbus_cxt, meas]()
         {
             Reporter::when_t const nowsecs =

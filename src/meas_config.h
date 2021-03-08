@@ -27,6 +27,7 @@ struct modbus_server_t
     std::string serial_device;
 
     // Optionally present in json, so they have default values
+    bool enabled = true;
     std::string line_config = "9600:8:N:1";
     std::chrono::milliseconds answering_time{500};
 };
@@ -43,6 +44,8 @@ struct measure_t
     std::string name;
     optional<source_register_t> source;
     std::chrono::seconds sampling_period;
+
+    bool enabled = true;
     bool accumulating       = false;
     bool report_raw_samples = false;
 };
