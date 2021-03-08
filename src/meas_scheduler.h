@@ -5,6 +5,7 @@
 #include "rtu_context.hpp"
 
 #include <chrono>
+#include <loguru.hpp>
 #include <unordered_map>
 
 namespace measure {
@@ -18,17 +19,14 @@ class scheduler
     // the elements and that doesn't work well with the lower level modbus C-api
     // which works with (non-const) modbus_t *
     std::unordered_map<measure::server_id_t, modbus::RTUContext> mbcxts_;
-    bool verbose_;
     Reporter &report_;
 
     void add_schedule(modbus::RTUContext &modbus_cxt,
                       std::vector<measure_t> const &measures);
 
 public:
-    scheduler(Reporter &report,
-              configuration_map_t const &configmap,
-              bool verbose = false)
-      : verbose_(verbose), report_(report)
+    scheduler(Reporter &report, configuration_map_t const &configmap)
+      : report_(report)
     {
         for (auto const &el: configmap)
         {
@@ -47,7 +45,7 @@ public:
                       server_config.modbus_id,
                       server_config.name,
                       modbus::RandomParams(server_config.line_config),
-                      verbose_);
+                      loguru::g_stderr_verbosity == loguru::Verbosity_MAX);
                 }
                 else
                 {
@@ -62,7 +60,7 @@ public:
                       modbus::SerialLine(server_config.serial_device,
                                          server_config.line_config),
                       server_config.answering_time,
-                      verbose_);
+                      loguru::g_stderr_verbosity == loguru::Verbosity_MAX);
                 }
             }();
 

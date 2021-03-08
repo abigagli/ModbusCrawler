@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <loguru.hpp>
 #include <string>
 #include <unistd.h>
 
@@ -15,11 +16,12 @@ int
 usage(int res, std::string const &msg = "")
 {
     if (!msg.empty())
-        std::cout << "\n*** ERROR: " << msg << " ***\n\n";
-    std::cout << "Usage:\n";
-    std::cout << g_prog_name << R"(
+        std::cerr << "\n*** ERROR: " << msg << " ***\n\n";
+    std::cerr << "Usage:\n";
+    std::cerr << g_prog_name << R"(
                 [-h(help)]
-                [-v(erbose)]
+                [-v(erbosity) = INFO]
+                [-l(og_path) = /tmp/<appname>]
                 {
                     -m <measconfig_file.json>
                     [-r <reporting period = 60s>]
@@ -27,7 +29,7 @@ usage(int res, std::string const &msg = "")
                     |
 
                     [-d <device = /dev/ttyUSB0>]
-                    [-l <line_config ="9600:8:N:1">]
+                    [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
                     <regnum>
@@ -43,19 +45,19 @@ usage(int res, std::string const &msg = "")
 namespace options {
 namespace defaults {
     std::string const device      = "/dev/ttyUSB0";
-    bool const verbose            = false;
     std::string const line_config = "9600:8:N:1";
+    std::string const log_path    = "/tmp";
     auto const answering_time     = 500ms;
     auto const reporting_period   = 60s;
 } // namespace defaults
 
-// Measure mode
+std::string log_path = defaults::log_path;
+// Measure mode specific
 std::string measconfig_file;
 std::chrono::seconds reporting_period = defaults::reporting_period;
 
-// Single-shot reads
+// Single-shot reads specific
 std::string device      = defaults::device;
-bool verbose            = defaults::verbose;
 std::string line_config = defaults::line_config;
 int server_id           = -1;
 auto answering_time     = defaults::answering_time;
@@ -87,7 +89,7 @@ single_read(int address, std::string regspec)
       "Server_" + std::to_string(options::server_id),
       modbus::SerialLine(options::device, options::line_config),
       options::answering_time,
-      options::verbose);
+      loguru::g_stderr_verbosity == loguru::Verbosity_MAX);
 
     // if (options::address >= 40000)
     //     options::address -= 40000;
@@ -95,7 +97,7 @@ single_read(int address, std::string regspec)
     int64_t const val =
       ctx.read_holding_registers(address, regsize, word_endianess);
 
-    std::cout << "REGISTER " << address << ": " << val << '\n';
+    LOG_S(INFO) << "REGISTER " << address << ": " << val;
     return 0;
 }
 
@@ -104,20 +106,22 @@ single_read(int address, std::string regspec)
 int
 main(int argc, char *argv[])
 {
+    loguru::init(argc, argv);
+
     g_prog_name = argv[0];
     optind      = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "hd:vl:s:a:m:r:")) != -1)
+    while ((ch = getopt(argc, argv, "hd:c:l:s:a:m:r:")) != -1)
     {
         switch (ch)
         {
         case 'd':
             options::device = optarg;
             break;
-        case 'v':
-            options::verbose = true;
-            break;
         case 'l':
+            options::log_path = optarg;
+            break;
+        case 'c':
             options::line_config = optarg;
             break;
         case 's':
@@ -143,6 +147,12 @@ main(int argc, char *argv[])
 
     argc -= optind;
     argv += optind;
+
+    char log_file[PATH_MAX];
+    loguru::suggest_log_path(
+      options::log_path.c_str(), log_file, sizeof(log_file));
+    loguru::add_file(
+      log_file, loguru::FileMode::Truncate, loguru::Verbosity_MAX);
 
     if (options::measconfig_file.empty())
     {
@@ -182,7 +192,7 @@ main(int argc, char *argv[])
     report.close_period();
     *********************************************/
 
-    measure::scheduler scheduler(report, meas_config, options::verbose);
+    measure::scheduler scheduler(report, meas_config);
 
     scheduler.run_loop(options::reporting_period);
     return 0;

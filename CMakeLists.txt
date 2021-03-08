@@ -20,6 +20,11 @@ set (FIND_LIBRARY_USE_LIB64_PATHS TRUE)
 
 add_subdirectory(3rdParty)
 
+target_include_directories (${APPLICATION_TARGET_NAME}
+    PRIVATE
+    ${CMAKE_BINARY_DIR}/3rdParty/loguru/loguru-src
+    )
+
 target_sources (${APPLICATION_TARGET_NAME}
     PRIVATE
     src/main.cpp
@@ -28,8 +33,14 @@ target_sources (${APPLICATION_TARGET_NAME}
     src/meas_reporter.cpp
     src/json_support.cpp
     src/periodic_scheduler.cpp
+    ${CMAKE_BINARY_DIR}/3rdParty/loguru/loguru-src/loguru.cpp
     ${CMAKE_SOURCE_DIR}/compile_commands.json #<-- Having this as a dependency will cause the custom command below to execute...
     )
+
+    target_compile_options(${APPLICATION_TARGET_NAME}
+    PRIVATE
+    -DLOGURU_WITH_STREAMS=1
+    -DLOGURU_WITH_FILEABS=1)
 
 # Since this custom command's OUTPUT is a dependency of our executable target
 # the custom command itself will be executed at build time to produce such OUTPUT 

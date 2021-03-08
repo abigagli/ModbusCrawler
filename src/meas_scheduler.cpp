@@ -3,7 +3,7 @@
 #include "meas_reporter.h"
 
 #include <cmath>
-#include <iostream>
+#include <sstream>
 #include <thread>
 
 constexpr bool logging = true;
@@ -22,14 +22,12 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
               std::chrono::time_point_cast<Reporter::when_t::duration>(
                 Reporter::when_t::clock::now());
 
-            if (logging)
-            {
-                auto const period = meas.sampling_period.count();
+            std::ostringstream msg;
+            auto const period = meas.sampling_period.count();
 
-                std::cerr << nowsecs.time_since_epoch().count() << "->"
-                          << period << ' ' << modbus_cxt.name() << "@"
-                          << modbus_cxt.id() << " " << meas.name;
-            }
+            msg << nowsecs.time_since_epoch().count() << "->" << period << ' '
+                << modbus_cxt.name() << "@" << modbus_cxt.id() << " "
+                << meas.name;
 
             double measurement = std::numeric_limits<double>::quiet_NaN();
             if (meas.source)
@@ -37,11 +35,8 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                 // Normal case: reading from a real modbus device
                 auto const source_value = meas.source.value();
 
-                if (logging)
-                {
-                    std::cerr << ": reading register " << source_value.address
-                              << "#" << source_value.size << ": ";
-                }
+                msg << ": reading register " << source_value.address << "#"
+                    << source_value.size << ": ";
 
                 int64_t reg_value;
                 try
@@ -62,16 +57,13 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                 }
                 catch (std::exception &e)
                 {
-                    std::cerr << "******** FAILED *******\n";
+                    LOG_S(ERROR) << msg.str() << "******** FAILED *******";
                 }
             }
             else
             {
                 // Testing case: get some random numbers
-                if (logging)
-                {
-                    std::cerr << ": ";
-                }
+                msg << ": ";
                 measurement = modbus_cxt.read_random_value();
             }
 
@@ -79,8 +71,9 @@ scheduler::add_schedule(modbus::RTUContext &modbus_cxt,
                                     meas.name,
                                     nowsecs,
                                     measurement);
-            if (logging && !std::isnan(measurement))
-                std::cerr << measurement << '\n';
+
+            LOG_IF_S(INFO, !std::isnan(measurement))
+              << msg.str() << measurement;
         };
 
         impl_.addTask("Server_" + std::to_string(modbus_cxt.id()) + "/" +
