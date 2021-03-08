@@ -108,14 +108,17 @@ Reporter::close_period()
             json jdata{{"num_failures", result.data.num_failures}};
             jdata["num_samples"] = result.data.samples.size();
 
-            if (!result.data.samples.empty())
+            if (!result.data.samples.empty() && !result.descriptor.accumulating)
+            {
                 result.data.statistics = calculate_stats(result.data.samples);
 
-            jdata["statistics"] = {
-              {"min", fixed_digits(result.data.statistics.min, 3)},
-              {"max", fixed_digits(result.data.statistics.max, 3)},
-              {"mean", fixed_digits(result.data.statistics.mean, 3)},
-              {"stdev", fixed_digits(result.data.statistics.stdev, 3)}};
+                jdata["statistics"] = {
+                  {"min", fixed_digits(result.data.statistics.min, 3)},
+                  {"max", fixed_digits(result.data.statistics.max, 3)},
+                  {"mean", fixed_digits(result.data.statistics.mean, 3)},
+                  {"stdev", fixed_digits(result.data.statistics.stdev, 3)}};
+            }
+
             if (result.descriptor.report_raw_samples)
                 jdata["samples"] = result.data.samples;
 
