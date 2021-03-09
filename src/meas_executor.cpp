@@ -3,21 +3,23 @@
 #include "meas_reporter.h"
 #include "periodic_scheduler.h"
 
+#include <cassert>
 #include <cmath>
+#include <loguru.hpp>
 #include <sstream>
 #include <thread>
-#include <cassert>
 
 namespace measure {
 
 void
-Executor::add_schedule(infra::PeriodicScheduler &scheduler, Reporter &reporter,
-                        modbus::RTUContext &modbus_cxt,
-                        std::vector<measure_t> const &measures)
+Executor::add_schedule(infra::PeriodicScheduler &scheduler,
+                       Reporter &reporter,
+                       modbus::RTUContext &modbus_cxt,
+                       std::vector<measure_t> const &measures)
 {
     for (auto const &meas: measures)
     {
-        assert (meas.enabled);
+        assert(meas.enabled);
 
         auto const meas_task = [this, &reporter, &modbus_cxt, meas]()
         {
@@ -44,6 +46,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler, Reporter &reporter,
                 int64_t reg_value;
                 try
                 {
+                    LOG_SCOPE_F(1, "Reading register");
                     if (source_value.type == modbus::regtype::holding)
                         reg_value = modbus_cxt.read_holding_registers(
                           source_value.address,
@@ -67,6 +70,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler, Reporter &reporter,
             {
                 // Testing case: get some random numbers
                 msg << ": ";
+                LOG_SCOPE_F(1, "Reading random");
                 measurement = modbus_cxt.read_random_value();
             }
 
@@ -81,10 +85,10 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler, Reporter &reporter,
 
         bool const execute_at_start = true;
         scheduler.addTask("Server_" + std::to_string(modbus_cxt.id()) + "/" +
-                             meas.name,
-                           meas.sampling_period,
-                           meas_task,
-                           execute_at_start);
+                            meas.name,
+                          meas.sampling_period,
+                          meas_task,
+                          execute_at_start);
     }
 }
 } // namespace measure
