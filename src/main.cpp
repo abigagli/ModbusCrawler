@@ -48,7 +48,7 @@ namespace options {
 namespace defaults {
     std::string const device      = "/dev/ttyUSB0";
     std::string const line_config = "9600:8:N:1";
-    std::string const log_path    = "/tmp";
+    std::string const log_path    = "";
     auto const answering_time     = 500ms;
     auto const reporting_period   = 60s;
     auto const logrotation_period = 1h;
@@ -154,10 +154,13 @@ main(int argc, char *argv[])
     argv += optind;
 
     char log_file[PATH_MAX];
-    loguru::suggest_log_path(
-      options::log_path.c_str(), log_file, sizeof(log_file));
-    loguru::add_file(
-      log_file, loguru::FileMode::Truncate, loguru::Verbosity_MAX);
+    if (!options::log_path.empty())
+    {
+        loguru::suggest_log_path(
+          options::log_path.c_str(), log_file, sizeof(log_file));
+        loguru::add_file(
+          log_file, loguru::FileMode::Truncate, loguru::Verbosity_MAX);
+    }
 
     if (options::measconfig_file.empty())
     {
@@ -205,19 +208,22 @@ main(int argc, char *argv[])
       false);
 
 #if LOGURU_WITH_FILEABS
-    int progr                       = 0;
-    int constexpr num_rotated_files = 5;
-    scheduler.addTask(
-      "LogRotator",
-      options::logrotation_period,
-      [&]()
-      {
-          std::string newname = std::string(log_file) + "_" +
-                                std::to_string(progr++ % num_rotated_files);
-          LOG_S(WARNING) << "ROTATING TO " << newname;
-          std::rename(log_file, newname.c_str());
-      },
-      false);
+    if (!options::log_path.empty())
+    {
+        scheduler.addTask(
+          "LogRotator",
+          options::logrotation_period,
+          [&]()
+          {
+              static int progr                = 0;
+              int constexpr num_rotated_files = 5;
+              std::string newname             = std::string(log_file) + "_" +
+                                    std::to_string(progr++ % num_rotated_files);
+              LOG_S(WARNING) << "Log rotating to " << newname;
+              std::rename(log_file, newname.c_str());
+          },
+          false);
+    }
 #endif
     measure::Executor measure_executor(scheduler, reporter, meas_config);
 
