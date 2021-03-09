@@ -76,7 +76,10 @@ Reporter::add_measurement(server_key_t const &sk,
 
     data.samples.emplace_back(when, value);
     if (std::isnan(value))
-        ++data.num_failures;
+    {
+        ++data.period_failures;
+        ++data.total_failures;
+    }
 }
 
 void
@@ -105,7 +108,10 @@ Reporter::close_period()
             /*******************************/
 
             /** Fill result_t::data **/
-            json jdata{{"num_failures", result.data.num_failures}};
+            json jdata{
+              {"total_failures", result.data.total_failures},
+              {"period_failures", result.data.period_failures},
+            };
             jdata["num_samples"] = result.data.samples.size();
 
             if (!result.data.samples.empty())

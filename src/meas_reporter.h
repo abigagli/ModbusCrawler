@@ -42,13 +42,15 @@ private:
     struct data_t
     {
         std::vector<std::pair<when_t, double>> samples;
-        size_t num_failures{};
+        size_t total_failures{};
+        size_t period_failures{};
         stats_t statistics{};
 
         void reset()
         {
             samples.clear();
-            statistics = {};
+            period_failures = 0;
+            statistics      = {};
         }
     };
 
@@ -69,8 +71,8 @@ private:
 
 public:
     void configure_measurement(server_key_t const &sk,
-                   std::string const &meas_name,
-                   descriptor_t descriptor);
+                               std::string const &meas_name,
+                               descriptor_t descriptor);
 
     void add_measurement(server_key_t const &sk,
                          std::string const &meas_name,
