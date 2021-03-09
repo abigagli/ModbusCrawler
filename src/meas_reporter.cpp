@@ -38,8 +38,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Reporter::descriptor_t,
 
 void
 Reporter::configure_measurement(server_key_t const &sk,
-                    std::string const &meas_name,
-                    descriptor_t descriptor)
+                                std::string const &meas_name,
+                                descriptor_t descriptor)
 {
     auto &results_for_server = results_[sk];
 
@@ -49,8 +49,8 @@ Reporter::configure_measurement(server_key_t const &sk,
 
     if (!added)
         throw std::invalid_argument(
-          "configure_measurement: duplicate measure: " + meas_name + " for server " +
-          sk.to_string());
+          "configure_measurement: duplicate measure: " + meas_name +
+          " for server " + sk.to_string());
 }
 
 void
@@ -141,30 +141,58 @@ Reporter::close_period()
 Reporter::stats_t
 Reporter::calculate_stats(decltype(data_t::samples) const &samples)
 {
-    double sum = 0;
-    double min = std::numeric_limits<double>::max();
-    double max = std::numeric_limits<double>::lowest();
+    double sum   = 0;
+    double min   = std::numeric_limits<double>::max();
+    double max   = std::numeric_limits<double>::lowest();
+    double mean  = std::numeric_limits<double>::quiet_NaN();
+    double stdev = std::numeric_limits<double>::quiet_NaN();
 
+    unsigned int valid_samples = 0;
     std::for_each(std::begin(samples),
                   std::end(samples),
                   [&](auto const &el)
                   {
-                      sum += el.second;
-                      min = std::min(min, el.second);
-                      max = std::max(max, el.second);
+                      if (!std::isnan(el.second))
+                      {
+                          ++valid_samples;
+                          sum += el.second;
+                          min = std::min(min, el.second);
+                          max = std::max(max, el.second);
+                      }
                   });
 
-    double const mean = sum / static_cast<double>(samples.size());
+    if (valid_samples != 0)
+    {
+        mean = sum / static_cast<double>(valid_samples);
 
-    double accum = 0.0;
-    std::for_each(std::begin(samples),
-                  std::end(samples),
-                  [&](auto const &el)
-                  { accum += (el.second - mean) * (el.second - mean); });
+        // We calculated mean from the data, so we need at least 2 valid samples
+        // since we divide by (valid_samples - 1).
+        // See http://duramecho.com/Misc/WhyMinusOneInSd.html
+        if (valid_samples > 1)
+        {
+            double accum = 0.0;
+            std::for_each(std::begin(samples),
+                          std::end(samples),
+                          [&](auto const &el)
+                          {
+                              if (!std::isnan(el.second))
+                                  accum +=
+                                    (el.second - mean) * (el.second - mean);
+                          });
 
-    // We calculated mean from the data, so divide by (size - 1).
-    // See http://duramecho.com/Misc/WhyMinusOneInSd.html
-    double const stdev = sqrt(accum / static_cast<double>(samples.size() - 1));
+            stdev = sqrt(accum / static_cast<double>(valid_samples - 1));
+        }
+        else // If there's just a single valid sample, stdev is simply 0
+            stdev = 0;
+    }
+    else
+    {
+        // If we didn't find any valid sample, we need to set min and max
+        // to NaN, otherwise we would incorrectly return the max() and lowest()
+        // values used to search for min/max
+        min = std::numeric_limits<double>::quiet_NaN();
+        max = std::numeric_limits<double>::quiet_NaN();
+    }
 
     return {min, max, mean, stdev};
 }
