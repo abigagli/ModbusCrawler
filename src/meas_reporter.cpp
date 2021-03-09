@@ -108,7 +108,7 @@ Reporter::close_period()
             json jdata{{"num_failures", result.data.num_failures}};
             jdata["num_samples"] = result.data.samples.size();
 
-            if (!result.data.samples.empty() && !result.descriptor.accumulating)
+            if (!result.data.samples.empty())
             {
                 result.data.statistics = calculate_stats(result.data.samples);
 
