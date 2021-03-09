@@ -205,7 +205,7 @@ main(int argc, char *argv[])
       false);
 
 #if LOGURU_WITH_FILEABS
-    int progr                       = 1;
+    int progr                       = 0;
     int constexpr num_rotated_files = 5;
     scheduler.addTask(
       "LogRotator",
