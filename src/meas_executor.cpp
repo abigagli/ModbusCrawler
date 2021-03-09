@@ -7,7 +7,6 @@
 #include <cmath>
 #include <loguru.hpp>
 #include <sstream>
-#include <thread>
 
 namespace measure {
 
