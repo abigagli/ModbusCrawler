@@ -90,10 +90,7 @@ single_read(int address, std::string regspec)
       "Server_" + std::to_string(options::server_id),
       modbus::SerialLine(options::device, options::line_config),
       options::answering_time,
-      loguru::g_stderr_verbosity == loguru::Verbosity_MAX);
-
-    // if (options::address >= 40000)
-    //     options::address -= 40000;
+      loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
 
     int64_t const val =
       ctx.read_holding_registers(address, regsize, word_endianess);
@@ -176,10 +173,10 @@ main(int argc, char *argv[])
 
         for (auto const &meas: measures)
             reporter.configure_measurement({server.name, server.modbus_id},
-                               meas.name,
-                               {meas.sampling_period,
-                                meas.accumulating,
-                                meas.report_raw_samples});
+                                           meas.name,
+                                           {meas.sampling_period,
+                                            meas.accumulating,
+                                            meas.report_raw_samples});
     }
 
     /*********************************************

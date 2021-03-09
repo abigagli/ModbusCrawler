@@ -21,14 +21,15 @@ class Executor
     // which works with (non-const) modbus_t *
     std::unordered_map<measure::server_id_t, modbus::RTUContext> mbcxts_;
 
-    void add_schedule(infra::PeriodicScheduler &scheduler, Reporter &reporter,
+    void add_schedule(infra::PeriodicScheduler &scheduler,
+                      Reporter &reporter,
                       modbus::RTUContext &modbus_cxt,
                       std::vector<measure_t> const &measures);
 
 public:
     Executor(infra::PeriodicScheduler &scheduler,
-              Reporter &reporter,
-              configuration_map_t const &configmap)
+             Reporter &reporter,
+             configuration_map_t const &configmap)
     {
         for (auto const &el: configmap)
         {
@@ -47,7 +48,7 @@ public:
                       server_config.modbus_id,
                       server_config.name,
                       modbus::RandomParams(server_config.line_config),
-                      loguru::g_stderr_verbosity == loguru::Verbosity_MAX);
+                      loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
                 }
                 else
                 {
@@ -62,7 +63,7 @@ public:
                       modbus::SerialLine(server_config.serial_device,
                                          server_config.line_config),
                       server_config.answering_time,
-                      loguru::g_stderr_verbosity == loguru::Verbosity_MAX);
+                      loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
                 }
             }();
 
@@ -72,8 +73,10 @@ public:
                   "Failed creating RTUContext for modbus id " +
                   std::to_string(server_config.modbus_id));
 
-            add_schedule(
-              scheduler, reporter, cxt_insertion_result.first->second, el.second.measures);
+            add_schedule(scheduler,
+                         reporter,
+                         cxt_insertion_result.first->second,
+                         el.second.measures);
         }
     }
 };
