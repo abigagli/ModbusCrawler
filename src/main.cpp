@@ -23,6 +23,7 @@ usage(int res, std::string const &msg = "")
                 [-h(help)]
                 [-v(erbosity) = INFO]
                 [-l(og_path) = /tmp/<appname>]
+                [-t(ime of log rotation) = 1h]
                 {
                     -m <measconfig_file.json>
                     [-r <reporting period = 60s>]
@@ -50,9 +51,11 @@ namespace defaults {
     std::string const log_path    = "/tmp";
     auto const answering_time     = 500ms;
     auto const reporting_period   = 60s;
+    auto const logrotation_period = 1h;
 } // namespace defaults
 
-std::string log_path = defaults::log_path;
+std::string log_path                    = defaults::log_path;
+std::chrono::seconds logrotation_period = defaults::logrotation_period;
 // Measure mode specific
 std::string measconfig_file;
 std::chrono::seconds reporting_period = defaults::reporting_period;
@@ -109,7 +112,7 @@ main(int argc, char *argv[])
     g_prog_name = argv[0];
     optind      = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "hd:c:l:s:a:m:r:")) != -1)
+    while ((ch = getopt(argc, argv, "hd:c:l:s:a:m:r:t:")) != -1)
     {
         switch (ch)
         {
@@ -134,6 +137,10 @@ main(int argc, char *argv[])
             break;
         case 'r':
             options::reporting_period = std::chrono::seconds(std::stoi(optarg));
+            break;
+        case 't':
+            options::logrotation_period =
+              std::chrono::seconds(std::stoi(optarg));
             break;
         case '?':
             return usage(-1);
@@ -197,6 +204,21 @@ main(int argc, char *argv[])
       [&reporter]() { reporter.close_period(); },
       false);
 
+#if LOGURU_WITH_FILEABS
+    int progr                       = 1;
+    int constexpr num_rotated_files = 5;
+    scheduler.addTask(
+      "LogRotator",
+      options::logrotation_period,
+      [&]()
+      {
+          std::string newname = std::string(log_file) + "_" +
+                                std::to_string(progr++ % num_rotated_files);
+          LOG_S(WARNING) << "ROTATING TO " << newname;
+          std::rename(log_file, newname.c_str());
+      },
+      false);
+#endif
     measure::Executor measure_executor(scheduler, reporter, meas_config);
 
     scheduler.run();
