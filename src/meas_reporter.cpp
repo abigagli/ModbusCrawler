@@ -85,26 +85,29 @@ Reporter::add_measurement(server_key_t const &sk,
 void
 Reporter::close_period()
 {
-    ++periods_;
+    ++period_id_;
     when_t const nowsecs =
       std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
 
-    json jreport{{"when", nowsecs}, {"periods", periods_}};
+    json jreport{{"when", nowsecs}, {"period_id", period_id_}, {"servers", {}}};
+
     for (auto &server_el: results_)
     {
-        json jmeasure;
-        std::string server_name = server_el.first.to_string();
+        json jserver{{"name", server_el.first.server_name},
+                     {"id", server_el.first.server_id},
+                     {"results", {}}};
 
         for (auto &result_el: server_el.second)
         {
-            auto &meas_name = result_el.first;
-            auto &result    = result_el.second;
+            auto const &meas_name = result_el.first;
+            auto &result          = result_el.second;
 
             json jresult;
             /** Fill result_t::descriptor **/
             json jdescriptor(result.descriptor);
 
-            jresult["descriptor"] = std::move(jdescriptor);
+            jresult["measure_name"] = meas_name;
+            jresult["descriptor"]   = std::move(jdescriptor);
             /*******************************/
 
             /** Fill result_t::data **/
@@ -131,14 +134,13 @@ Reporter::close_period()
             jresult["data"] = std::move(jdata);
             /************************/
 
-            // Attach result_t to the measure name
-            jmeasure[result_el.first] = std::move(jresult);
+            jserver["results"].push_back(std::move(jresult));
 
             // Reset data, ready for next period
             result.data.reset();
         }
 
-        jreport[server_name] = std::move(jmeasure);
+        jreport["servers"].push_back(std::move(jserver));
     }
 
     std::cout << jreport.dump(2) << std::endl;
@@ -171,9 +173,9 @@ Reporter::calculate_stats(decltype(data_t::samples) const &samples)
     {
         mean = sum / static_cast<double>(valid_samples);
 
-        // We calculated mean from the data, so we need at least 2 valid samples
-        // since we divide by (valid_samples - 1).
-        // See http://duramecho.com/Misc/WhyMinusOneInSd.html
+        // We calculated mean from the data, so we need at least 2 valid
+        // samples since we divide by (valid_samples - 1). See
+        // http://duramecho.com/Misc/WhyMinusOneInSd.html
         if (valid_samples > 1)
         {
             double accum = 0.0;
@@ -194,8 +196,8 @@ Reporter::calculate_stats(decltype(data_t::samples) const &samples)
     else
     {
         // If we didn't find any valid sample, we need to set min and max
-        // to NaN, otherwise we would incorrectly return the max() and lowest()
-        // values used to search for min/max
+        // to NaN, otherwise we would incorrectly return the max() and
+        // lowest() values used to search for min/max
         min = std::numeric_limits<double>::quiet_NaN();
         max = std::numeric_limits<double>::quiet_NaN();
     }
