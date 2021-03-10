@@ -22,7 +22,7 @@ usage(int res, std::string const &msg = "")
     std::cerr << g_prog_name << R"(
                 [-h(help)]
                 [-v(erbosity) = INFO]
-                [-l(og_path) = /tmp/<appname>]
+                [-l(og_path) = "" (disabled)]
                 [-t(ime of log rotation) = 1h]
                 {
                     -m <measconfig_file.json>
