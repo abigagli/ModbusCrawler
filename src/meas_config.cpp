@@ -83,7 +83,6 @@ from_json(json const &j, modbus_server_t &s)
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(source_register_t,
                                    address,
-                                   value_type,
                                    endianess,
                                    type,
                                    scale_factor)
@@ -94,7 +93,8 @@ to_json(json &j, measure_t const &m)
     j = json{{"name", m.name},
              {"accumulating", m.accumulating},
              {"sampling_period", m.sampling_period},
-             {"report_raw_samples", m.report_raw_samples}};
+             {"report_raw_samples", m.report_raw_samples},
+             {"value_type", m.value_type}};
 
     if (m.source)
     {

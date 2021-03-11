@@ -26,6 +26,7 @@ public:
     struct descriptor_t
     {
         std::chrono::seconds period;
+        modbus::value_type value_type;
         bool accumulating;
         bool report_raw_samples;
     };

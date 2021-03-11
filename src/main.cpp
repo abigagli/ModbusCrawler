@@ -185,6 +185,7 @@ main(int argc, char *argv[])
             reporter.configure_measurement({server.name, server.modbus_id},
                                            meas.name,
                                            {meas.sampling_period,
+                                            meas.value_type,
                                             meas.accumulating,
                                             meas.report_raw_samples});
     }

@@ -34,7 +34,6 @@ struct modbus_server_t
 struct source_register_t
 {
     int address;
-    modbus::value_type value_type;
     modbus::word_endianess endianess;
     modbus::regtype type;
     double scale_factor;
@@ -44,6 +43,7 @@ struct measure_t
     std::string name;
     optional<source_register_t> source;
     std::chrono::seconds sampling_period;
+    modbus::value_type value_type;
 
     bool enabled            = true;
     bool accumulating       = false;
