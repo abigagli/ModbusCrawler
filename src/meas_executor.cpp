@@ -76,7 +76,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                 }
                 catch (std::exception &e)
                 {
-                    LOG_S(ERROR) << msg.str() << "FAILED:" << e.what();
+                    LOG_S(ERROR) << msg.str() << "|FAILED:" << e.what();
                 }
             }
             else
