@@ -124,7 +124,11 @@ from_json(json const &j, measure_t &m)
     auto source_it = j.find("source");
 
     if (source_it != j.end())
+    {
         m.source = source_it->get<source_register_t>();
+        // If there's a source specification, there's also must be a value_type
+        j.at("value_type").get_to<modbus::value_type>(m.value_type);
+    }
 }
 
 
