@@ -29,8 +29,8 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
             std::ostringstream msg;
             auto const period = meas.sampling_period.count();
 
-            msg << nowsecs.time_since_epoch().count() << "->" << period << ':'
-                << modbus_cxt.name() << "@" << modbus_cxt.id() << ':'
+            msg << nowsecs.time_since_epoch().count() << "->" << period << '|'
+                << modbus_cxt.name() << "@" << modbus_cxt.id() << '|'
                 << meas.name;
 
             double measurement = std::numeric_limits<double>::quiet_NaN();
@@ -39,7 +39,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                 // Normal case: reading from a real modbus device
                 auto const source_value = meas.source.value();
 
-                msg << ':' << source_value.address << "#" << source_value.size;
+                msg << '|' << source_value.address << "#" << source_value.size;
 
                 int64_t reg_value;
                 try
@@ -56,7 +56,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                           source_value.size,
                           source_value.endianess);
 
-                    msg << ':' << std::hex << reg_value << std::dec;
+                    msg << '|' << std::hex << reg_value << std::dec;
 
                     measurement = static_cast<double>(reg_value) *
                                   source_value.scale_factor;
@@ -79,7 +79,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                                      measurement);
 
             LOG_IF_S(INFO, !std::isnan(measurement))
-              << msg.str() << ':' << measurement;
+              << msg.str() << '|' << measurement;
         };
 
         bool const execute_at_start = true;
