@@ -19,6 +19,15 @@ NLOHMANN_JSON_SERIALIZE_ENUM(regtype,
                                {regtype::holding, "holding"},
                                {regtype::input, "input"},
                              })
+NLOHMANN_JSON_SERIALIZE_ENUM(value_type,
+                             {
+                               {value_type::INT16, "INT16"},
+                               {value_type::UINT16, "UINT16"},
+                               {value_type::INT32, "INT32"},
+                               {value_type::UINT32, "UINT32"},
+                               {value_type::INT64, "INT64"},
+                               {value_type::UINT64, "UINT64"},
+                             })
 
 } // namespace modbus
 
@@ -74,16 +83,11 @@ from_json(json const &j, modbus_server_t &s)
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(source_register_t,
                                    address,
-                                   size,
+                                   value_type,
                                    endianess,
                                    type,
                                    scale_factor)
 
-// NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(measure_t,
-//                                    name,
-//                                    accumulating,
-//                                    sampling_period,
-//                                    source)
 void
 to_json(json &j, measure_t const &m)
 {
@@ -91,6 +95,7 @@ to_json(json &j, measure_t const &m)
              {"accumulating", m.accumulating},
              {"sampling_period", m.sampling_period},
              {"report_raw_samples", m.report_raw_samples}};
+
     if (m.source)
     {
         j["source"] = m.source.value();
@@ -151,9 +156,11 @@ read_config(std::string const &measconfig_file)
 
         // Prune non-enabled measures
         auto &measures = insertion.first->second.measures;
-        measures.erase(std::remove_if(std::begin(measures), std::end(measures), [](auto const &el) {
-                                          return !el.enabled;
-        }), std::end(measures));
+        measures.erase(std::remove_if(std::begin(measures),
+                                      std::end(measures),
+                                      [](auto const &el)
+                                      { return !el.enabled; }),
+                       std::end(measures));
     }
 
     return measure_descriptors;

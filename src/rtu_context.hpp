@@ -21,30 +21,35 @@ namespace detail {
     struct word_le_tag
     {};
 
+    inline bool regsize_supported(int regsize)
+    {
+        return regsize == 1 || regsize == 2 || regsize == 4;
+    }
+
+    // Always return signed type, it's up to the consumer to convert
+    // to unsigned if desired, and that is a well defined conversion
     inline int64_t to_val(uint16_t const *regs, int regsize, word_le_tag)
     {
         int64_t val;
         switch (regsize)
         {
-        case 1:
-            val = regs[0];
-            break;
-        case 2:
-            val = static_cast<int64_t>(regs[1]) << 16 | regs[0];
-            break;
-        case 3:
-            val = static_cast<int64_t>(regs[2]) << 32 |
-                  static_cast<int64_t>(regs[1]) << 16 | regs[0];
-            break;
-        case 4:
-            if (regs[3] > std::numeric_limits<int16_t>::max())
-                throw std::overflow_error("MSB of 64bit value too big: " +
-                                          std::to_string(regs[3]));
-
+        case 1: {
+            // NOTE: force conversion to signed counterpart before
+            // assigning to the wider type, to ensure sign extension is
+            // performed
+            val = static_cast<int16_t>(regs[0]);
+        }
+        break;
+        case 2: {
+            val = static_cast<int32_t>(regs[1]) << 16 | regs[0];
+        }
+        break;
+        case 4: {
             val = static_cast<int64_t>(regs[3]) << 48 |
                   static_cast<int64_t>(regs[2]) << 32 |
                   static_cast<int64_t>(regs[1]) << 16 | regs[0];
-            break;
+        }
+        break;
         default:
             assert(!"regsize not supported");
         }
@@ -58,20 +63,15 @@ namespace detail {
         switch (regsize)
         {
         case 1:
-            val = regs[0];
+            // NOTE: force conversion to signed counterpart before
+            // assigning to the wider type, to ensure sign extension is
+            // performed
+            val = static_cast<int16_t>(regs[0]);
             break;
         case 2:
-            val = static_cast<int64_t>(regs[0]) << 16 | regs[1];
-            break;
-        case 3:
-            val = static_cast<int64_t>(regs[0]) << 32 |
-                  static_cast<int64_t>(regs[1]) << 16 | regs[2];
+            val = static_cast<int32_t>(regs[0]) << 16 | regs[1];
             break;
         case 4:
-            if (regs[0] > std::numeric_limits<int16_t>::max())
-                throw std::overflow_error("MSB of 64bit value too big: " +
-                                          std::to_string(regs[0]));
-
             val = static_cast<int64_t>(regs[0]) << 48 |
                   static_cast<int64_t>(regs[1]) << 32 |
                   static_cast<int64_t>(regs[2]) << 16 | regs[3];
@@ -248,7 +248,7 @@ public:
                                  int regsize,
                                  word_endianess endianess)
     {
-        if (regsize > 4)
+        if (!detail::regsize_supported(regsize))
             throw std::invalid_argument("Invalid regsize: " +
                                         std::to_string(regsize));
 
@@ -273,7 +273,7 @@ public:
                                    int regsize,
                                    word_endianess endianess)
     {
-        if (regsize > 4)
+        if (!detail::regsize_supported(regsize))
             throw std::invalid_argument("Invalid regsize: " +
                                         std::to_string(regsize));
 
