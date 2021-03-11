@@ -38,9 +38,12 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
             {
                 // Normal case: reading from a real modbus device
                 auto const source_value = meas.source.value();
-                auto const regsize = modbus::reg_size(source_value.value_type);
+                auto const reg_size = modbus::reg_size(source_value.value_type);
+                auto const value_signed =
+                  modbus::value_signed(source_value.value_type);
 
-                msg << '|' << source_value.address << "#" << regsize;
+                msg << '|' << source_value.address << "#" << reg_size
+                    << (value_signed ? 'I' : 'U');
 
                 int64_t reg_value;
                 try
@@ -49,17 +52,17 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                     if (source_value.type == modbus::regtype::holding)
                         reg_value = modbus_cxt.read_holding_registers(
                           source_value.address,
-                          regsize,
+                          reg_size,
                           source_value.endianess);
                     else
                         reg_value = modbus_cxt.read_input_registers(
                           source_value.address,
-                          regsize,
+                          reg_size,
                           source_value.endianess);
 
                     msg << '|' << std::hex << reg_value << std::dec;
 
-                    if (modbus::value_signed(source_value.value_type))
+                    if (value_signed)
                     {
                         measurement = static_cast<double>(reg_value) *
                                       source_value.scale_factor;
