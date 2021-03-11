@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <loguru.hpp>
 #include <nlohmann/json.hpp>
 
 using nlohmann::json;
@@ -88,6 +89,9 @@ Reporter::close_period()
     ++period_id_;
     when_t const nowsecs =
       std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
+
+    LOG_S(INFO) << nowsecs.time_since_epoch().count() << "| closing period "
+                << period_id_;
 
     json jreport{{"when", nowsecs}, {"period_id", period_id_}, {"servers", {}}};
 
