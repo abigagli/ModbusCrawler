@@ -38,8 +38,9 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
             {
                 // Normal case: reading from a real modbus device
                 auto const source_value = meas.source.value();
-                auto const reg_size     = modbus::reg_size(meas.value_type);
-                auto const value_signed = modbus::value_signed(meas.value_type);
+                auto const reg_size = modbus::reg_size(meas.value_type.value());
+                auto const value_signed =
+                  modbus::value_signed(meas.value_type.value());
 
                 msg << '|' << source_value.address << "#" << reg_size
                     << (value_signed ? 'I' : 'U');

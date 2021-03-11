@@ -33,7 +33,6 @@ fixed_digits(double number, int digits)
 namespace measure {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Reporter::descriptor_t,
                                    period,
-                                   value_type,
                                    accumulating,
                                    report_raw_samples)
 

@@ -41,9 +41,11 @@ struct source_register_t
 struct measure_t
 {
     std::string name;
-    optional<source_register_t> source;
     std::chrono::seconds sampling_period;
-    modbus::value_type value_type;
+
+    // These are not mandatory when using a random source for testing
+    optional<source_register_t> source;
+    optional<modbus::value_type> value_type;
 
     bool enabled            = true;
     bool accumulating       = false;

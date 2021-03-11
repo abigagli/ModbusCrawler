@@ -93,12 +93,12 @@ to_json(json &j, measure_t const &m)
     j = json{{"name", m.name},
              {"accumulating", m.accumulating},
              {"sampling_period", m.sampling_period},
-             {"report_raw_samples", m.report_raw_samples},
-             {"value_type", m.value_type}};
+             {"report_raw_samples", m.report_raw_samples}};
 
     if (m.source)
     {
-        j["source"] = m.source.value();
+        j["source"]     = m.source.value();
+        j["value_type"] = m.value_type.value();
     }
 }
 
@@ -125,9 +125,9 @@ from_json(json const &j, measure_t &m)
 
     if (source_it != j.end())
     {
-        m.source = source_it->get<source_register_t>();
-        // If there's a source specification, there's also must be a value_type
-        j.at("value_type").get_to<modbus::value_type>(m.value_type);
+        // Use assignment as ->get_to doesn't work easily with optionals
+        m.source     = source_it->get<source_register_t>();
+        m.value_type = j.at("value_type");
     }
 }
 
