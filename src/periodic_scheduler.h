@@ -8,9 +8,9 @@
 
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 
 namespace infra {
@@ -28,25 +28,33 @@ using task_t = std::function<void()>;
 
 class PeriodicScheduler
 {
+public:
+    enum class TaskMode
+    {
+        execute_at_start,
+        skip_first_execution,
+    };
+
+private:
     class scheduled_task
     {
     public:
-        // Can't easily move these around, since the constructor immediately posts
-        // onto the io_context, so any copy / move operation would happen when something
-        // has already been scheduled... NOT-GOOD!
-        // Let's make this non-copy / non-moveable
-        scheduled_task(scheduled_task const &) = delete;
-        scheduled_task&operator=(scheduled_task const &) = delete;
+        // Can't easily move these around, since the constructor immediately
+        // posts onto the io_context, so any copy / move operation would happen
+        // when something has already been scheduled... NOT-GOOD! Let's make
+        // this non-copy / non-moveable
+        scheduled_task(scheduled_task const&) = delete;
+        scheduled_task& operator=(scheduled_task const&) = delete;
 
         scheduled_task(io_context& io_context,
-                      std::string name,
-                      std::chrono::seconds interval,
-                      task_t task,
-                      bool execute_at_start);
+                       std::string name,
+                       std::chrono::seconds interval,
+                       task_t task,
+                       TaskMode mode);
 
         void execute(error_code const& e);
 
-        void start(bool execute_at_start);
+        void start(TaskMode mode);
         void cancel();
 
     private:
@@ -58,17 +66,19 @@ class PeriodicScheduler
         std::string name_;
         std::chrono::seconds interval_;
     };
+
 public:
     unsigned long run();
 
     void addTask(std::string const& name,
                  std::chrono::seconds interval,
                  task_t const& task,
-                 bool execute_at_start);
+                 TaskMode mode);
 
 private:
     io_context io_context_;
-    // Need to hold periodic_task behind a pointer as they're non-copyable / non-moveable
+    // Need to hold periodic_task behind a pointer as they're non-copyable /
+    // non-moveable
     std::vector<std::unique_ptr<scheduled_task>> tasks_;
 };
 } // namespace infra

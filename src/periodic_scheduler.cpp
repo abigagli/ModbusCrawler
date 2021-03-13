@@ -8,50 +8,56 @@ namespace infra {
 using namespace boost;
 #endif
 
-    PeriodicScheduler::scheduled_task::scheduled_task(io_context& io_context,
-                                 std::string name,
-                                 std::chrono::seconds interval,
-                                 task_t task,
-                                 bool execute_at_start)
-      : io_context_(io_context)
-      , timer_(io_context)
-      , task_(std::move(task))
-      , name_(std::move(name))
-      , interval_(interval)
+PeriodicScheduler::scheduled_task::scheduled_task(io_context& io_context,
+                                                  std::string name,
+                                                  std::chrono::seconds interval,
+                                                  task_t task,
+                                                  TaskMode mode)
+  : io_context_(io_context)
+  , timer_(io_context)
+  , task_(std::move(task))
+  , name_(std::move(name))
+  , interval_(interval)
+{
+    // Schedule start to be ran by the io_context
+    io_context_.post([this, mode]() { start(mode); });
+}
+
+void
+PeriodicScheduler::scheduled_task::execute(error_code const& e)
+{
+    if (e != asio::error::operation_aborted)
     {
-        // Schedule start to be ran by the io_context
-        io_context_.post([this, execute_at_start]()
-                         { start(execute_at_start); });
-    }
+        task_();
 
-    void PeriodicScheduler::scheduled_task::execute(error_code const& e)
-    {
-        if (e != asio::error::operation_aborted)
-        {
-            task_();
-
-            timer_.expires_at(timer_.expiry() + interval_);
-            start_wait();
-        }
-        else
-            std::cout << "Periodic task " << name_ << " CANCELLED\n";
-    }
-
-    void PeriodicScheduler::scheduled_task::start(bool execute_at_start)
-    {
-        if (execute_at_start)
-            task_();
-
-        timer_.expires_after(interval_);
+        timer_.expires_at(timer_.expiry() + interval_);
         start_wait();
     }
+    else
+        std::cout << "Periodic task " << name_ << " CANCELLED\n";
+}
 
-    void PeriodicScheduler::scheduled_task::start_wait()
-    {
-        timer_.async_wait([this](error_code const& e) { execute(e); });
-    }
+void
+PeriodicScheduler::scheduled_task::start(TaskMode mode)
+{
+    if (mode == TaskMode::execute_at_start)
+        task_();
 
-    void PeriodicScheduler::scheduled_task::cancel() { timer_.cancel(); }
+    timer_.expires_after(interval_);
+    start_wait();
+}
+
+void
+PeriodicScheduler::scheduled_task::start_wait()
+{
+    timer_.async_wait([this](error_code const& e) { execute(e); });
+}
+
+void
+PeriodicScheduler::scheduled_task::cancel()
+{
+    timer_.cancel();
+}
 
 unsigned long
 PeriodicScheduler::run()
@@ -94,9 +100,10 @@ void
 PeriodicScheduler::addTask(std::string const& name,
                            std::chrono::seconds interval,
                            task_t const& task,
-                           bool execute_at_start)
+                           TaskMode mode)
 {
-    tasks_.push_back(std::make_unique<scheduled_task>(io_context_, name, interval, task, execute_at_start));
+    tasks_.push_back(std::make_unique<scheduled_task>(
+      io_context_, name, interval, task, mode));
 }
 
 } // namespace infra

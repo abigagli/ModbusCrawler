@@ -95,12 +95,11 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
               << msg.str() << '|' << measurement;
         };
 
-        bool const execute_at_start = true;
         scheduler.addTask("Server_" + std::to_string(modbus_cxt.id()) + "/" +
                             meas.name,
                           meas.sampling_period,
                           meas_task,
-                          execute_at_start);
+                          infra::PeriodicScheduler::TaskMode::execute_at_start);
     }
 }
 } // namespace measure

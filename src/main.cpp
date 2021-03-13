@@ -205,7 +205,7 @@ main(int argc, char *argv[])
       "ReportGenerator",
       options::reporting_period,
       [&reporter]() { reporter.close_period(); },
-      false);
+      infra::PeriodicScheduler::TaskMode::skip_first_execution);
 
 #if LOGURU_WITH_FILEABS
     if (!options::log_path.empty())
@@ -222,7 +222,7 @@ main(int argc, char *argv[])
               LOG_S(WARNING) << "Log rotating to " << newname;
               std::rename(log_file, newname.c_str());
           },
-          false);
+          infra::PeriodicScheduler::TaskMode::skip_first_execution);
     }
 #endif
     measure::Executor measure_executor(scheduler, reporter, meas_config);
