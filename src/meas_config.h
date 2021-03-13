@@ -43,7 +43,7 @@ struct measure_t
     std::string name;
     std::chrono::seconds sampling_period;
 
-    // These are not mandatory when using a random source for testing
+    // These are not present when using a random source for testing
     optional<source_register_t> source;
     optional<modbus::value_type> value_type;
 
