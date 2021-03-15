@@ -33,6 +33,8 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                 << modbus_cxt.name() << "@" << modbus_cxt.id() << '|'
                 << meas.name;
 
+            Reporter::SampleType sample_type =
+              Reporter::SampleType::read_failure;
             double measurement = std::numeric_limits<double>::quiet_NaN();
             if (meas.source)
             {
@@ -60,22 +62,64 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                           reg_size,
                           source_value.endianess);
 
-                    msg << '|' << std::hex << reg_value << std::dec;
+                    msg << '|' << reg_value << '(' << std::hex << reg_value
+                        << std::dec << ')';
 
                     if (value_signed)
                     {
-                        measurement = static_cast<double>(reg_value) *
-                                      source_value.scale_factor;
+                        if (reg_value < meas.min_allowed)
+                        {
+                            sample_type = Reporter::SampleType::underflow;
+                            LOG_S(WARNING)
+                              << msg.str() << "|UNDERFLOW: " << reg_value
+                              << " < " << meas.min_allowed;
+                        }
+                        else if (reg_value > meas.max_allowed)
+                        {
+                            sample_type = Reporter::SampleType::overflow;
+                            LOG_S(WARNING)
+                              << msg.str() << "|OVERFLOW: " << reg_value
+                              << " > " << meas.max_allowed;
+                        }
+                        else
+                        {
+                            sample_type = Reporter::SampleType::regular;
+                            measurement = static_cast<double>(reg_value) *
+                                          source_value.scale_factor;
+                        }
                     }
                     else
                     {
-                        measurement = static_cast<double>(
-                                        static_cast<uint64_t>(reg_value)) *
-                                      source_value.scale_factor;
+                        uint64_t const unsigned_value =
+                          static_cast<uint64_t>(reg_value);
+
+                        if (unsigned_value < meas.min_allowed)
+                        {
+                            sample_type = Reporter::SampleType::underflow;
+                            LOG_S(WARNING)
+                              << msg.str() << "|UNDERFLOW: " << unsigned_value
+                              << " < "
+                              << static_cast<uint64_t>(meas.min_allowed);
+                        }
+                        else if (unsigned_value > meas.max_allowed)
+                        {
+                            sample_type = Reporter::SampleType::overflow;
+                            LOG_S(WARNING)
+                              << msg.str() << "|OVERFLOW: " << unsigned_value
+                              << " > "
+                              << static_cast<uint64_t>(meas.max_allowed);
+                        }
+                        else
+                        {
+                            sample_type = Reporter::SampleType::regular;
+                            measurement = static_cast<double>(unsigned_value) *
+                                          source_value.scale_factor;
+                        }
                     }
                 }
                 catch (std::exception &e)
                 {
+                    sample_type = Reporter::SampleType::read_failure;
                     LOG_S(ERROR) << msg.str() << "|FAILED:" << e.what();
                 }
             }
@@ -83,15 +127,17 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
             {
                 // Testing case: get some random numbers
                 LOG_SCOPE_F(1, "Reading random");
+                sample_type = Reporter::SampleType::regular;
                 measurement = modbus_cxt.read_random_value();
             }
 
             reporter.add_measurement({modbus_cxt.name(), modbus_cxt.id()},
                                      meas.name,
                                      nowsecs,
-                                     measurement);
+                                     measurement,
+                                     sample_type);
 
-            LOG_IF_S(INFO, !std::isnan(measurement))
+            LOG_IF_S(INFO, sample_type == Reporter::SampleType::regular)
               << msg.str() << '|' << measurement;
         };
 

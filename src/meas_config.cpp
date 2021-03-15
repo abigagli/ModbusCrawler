@@ -1,6 +1,7 @@
 #include "meas_config.h"
 
 #include "json_support.h"
+#include "modbus_types.h"
 
 #include <nlohmann/json.hpp>
 
@@ -107,6 +108,37 @@ from_json(json const &j, measure_t &m)
 {
     j.at("name").get_to(m.name);
 
+    j.at("sampling_period").get_to(m.sampling_period);
+
+    auto source_it = j.find("source");
+
+    if (source_it != j.end())
+    {
+        // Use assignment as ->get_to doesn't work easily with optionals
+        m.source     = source_it->get<source_register_t>();
+        m.value_type = j.at("value_type");
+    }
+
+    auto min_allowed_it = j.find("min_allowed");
+    if (min_allowed_it != j.end())
+    {
+        uint64_t const unsigned_min =
+          min_allowed_it->is_number()
+            ? min_allowed_it->get<uint64_t>()
+            : std::stoull(min_allowed_it->get<std::string>(), nullptr, 0);
+        m.min_allowed = modbus::safe_to_signed<int64_t>(unsigned_min);
+    }
+
+    auto max_allowed_it = j.find("max_allowed");
+    if (max_allowed_it != j.end())
+    {
+        uint64_t const unsigned_max =
+          max_allowed_it->is_number()
+            ? max_allowed_it->get<uint64_t>()
+            : std::stoull(max_allowed_it->get<std::string>(), nullptr, 0);
+        m.max_allowed = modbus::safe_to_signed<int64_t>(unsigned_max);
+    }
+
     auto enabled_it = j.find("enabled");
     if (enabled_it != j.end())
         enabled_it->get_to(m.enabled);
@@ -118,17 +150,6 @@ from_json(json const &j, measure_t &m)
     auto report_raw_it = j.find("report_raw_samples");
     if (report_raw_it != j.end())
         report_raw_it->get_to(m.report_raw_samples);
-
-    j.at("sampling_period").get_to(m.sampling_period);
-
-    auto source_it = j.find("source");
-
-    if (source_it != j.end())
-    {
-        // Use assignment as ->get_to doesn't work easily with optionals
-        m.source     = source_it->get<source_register_t>();
-        m.value_type = j.at("value_type");
-    }
 }
 
 

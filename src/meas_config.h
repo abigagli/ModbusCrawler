@@ -47,6 +47,17 @@ struct measure_t
     optional<source_register_t> source;
     optional<modbus::value_type> value_type;
 
+    // These values are read from strings in the configuration using std::stoull
+    // (instead of std::stoll) to allow maximum positive range and exploit
+    // well-defined signed->unsigned wrap-around based conversion But once
+    // converted from string into uint64_t, they are stored as _signed_ int64_t
+    // (through a "safe conversion" that avoids the implementation-defined
+    // unsigned->signed conversion) because storing them as signed allows a safe
+    // and portable re-conversion to uint64_t when they are used in comparisons
+    // with unsigned values
+    int64_t min_allowed = std::numeric_limits<int64_t>::min();
+    int64_t max_allowed = std::numeric_limits<int64_t>::max();
+
     bool enabled            = true;
     bool accumulating       = false;
     bool report_raw_samples = false;

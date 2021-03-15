@@ -58,7 +58,8 @@ void
 Reporter::add_measurement(server_key_t const &sk,
                           std::string const &meas_name,
                           when_t when,
-                          double value)
+                          double value,
+                          SampleType sample_type)
 {
     auto server_it = results_.find(sk);
 
@@ -75,11 +76,23 @@ Reporter::add_measurement(server_key_t const &sk,
 
     auto &data = meas_it->second.data;
 
-    data.samples.emplace_back(when, value);
-    if (std::isnan(value))
+    switch (sample_type)
     {
-        ++data.period_failures;
-        ++data.total_failures;
+    case SampleType::regular:
+        data.samples.emplace_back(when, value);
+        break;
+    case SampleType::read_failure:
+        ++data.period_read_failures;
+        ++data.total_read_failures;
+        break;
+    case SampleType::underflow:
+        ++data.period_underflows;
+        ++data.total_underflows;
+        break;
+    case SampleType::overflow:
+        ++data.period_overflows;
+        ++data.total_overflows;
+        break;
     }
 }
 
@@ -116,8 +129,12 @@ Reporter::close_period()
 
             /** Fill result_t::data **/
             json jdata{
-              {"total_failures", result.data.total_failures},
-              {"period_failures", result.data.period_failures},
+              {"total_read_failures", result.data.total_read_failures},
+              {"period_read_failures", result.data.period_read_failures},
+              {"period_underflows", result.data.period_underflows},
+              {"total_underflows", result.data.total_underflows},
+              {"period_overflows", result.data.period_overflows},
+              {"total_overflows", result.data.total_overflows},
             };
             jdata["num_samples"] = result.data.samples.size();
 

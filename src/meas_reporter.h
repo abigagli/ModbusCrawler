@@ -11,6 +11,13 @@ namespace measure {
 class Reporter
 {
 public:
+    enum class SampleType
+    {
+        regular,
+        read_failure,
+        underflow,
+        overflow,
+    };
     using when_t =
       std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>;
     struct server_key_t
@@ -42,15 +49,21 @@ private:
     struct data_t
     {
         std::vector<std::pair<when_t, double>> samples;
-        size_t total_failures{};
-        size_t period_failures{};
+        size_t total_read_failures{};
+        size_t period_read_failures{};
+        size_t total_underflows{};
+        size_t period_underflows{};
+        size_t total_overflows{};
+        size_t period_overflows{};
         stats_t statistics{};
 
         void reset()
         {
             samples.clear();
-            period_failures = 0;
-            statistics      = {};
+            period_read_failures = 0;
+            period_underflows    = 0;
+            period_overflows     = 0;
+            statistics           = {};
         }
     };
 
@@ -77,7 +90,8 @@ public:
     void add_measurement(server_key_t const &sk,
                          std::string const &meas_name,
                          when_t when,
-                         double value);
+                         double value,
+                         SampleType sample_type);
 
     void close_period();
 };
