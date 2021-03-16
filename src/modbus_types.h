@@ -25,7 +25,7 @@ enum class value_type
 };
 
 template <class T>
-std::enable_if_t<std::is_signed_v<T>, T>
+std::enable_if_t<std::is_signed<T>::value, T>
 safe_to_signed(uint64_t val)
 {
     int64_t signedval;
