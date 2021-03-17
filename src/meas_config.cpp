@@ -82,24 +82,73 @@ from_json(json const &j, modbus_server_t &s)
     }
 }
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(source_register_t,
-                                   address,
-                                   endianess,
-                                   type,
-                                   scale_factor)
+// NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(source_register_t,
+//                                    address,
+//                                    endianess,
+//                                    reg_type,
+//                                    value_type,
+//                                    scale_factor,
+//                                    min_read_value,
+//                                    max_read_value)
+
+void
+to_json(json &j, source_register_t const &s)
+{
+    j = json{
+      {"address", s.address},
+      {"endianess", s.endianess},
+      {"reg_type", s.reg_type},
+      {"value_type", s.value_type},
+      {"scale_factor", s.scale_factor},
+      {"min_read_value", s.min_read_value.as<uint64_t>()},
+      {"max_read_value", s.min_read_value.as<uint64_t>()},
+    };
+}
+
+void
+from_json(json const &j, source_register_t &s)
+{
+    s.address      = j.at("address");
+    s.endianess    = j.at("endianess");
+    s.reg_type     = j.at("reg_type");
+    s.value_type   = j.at("value_type");
+    s.scale_factor = j.at("scale_factor");
+
+    auto min_read_value_it = j.find("min_read_value");
+    if (min_read_value_it != j.end())
+    {
+        uint64_t const unsigned_min =
+          min_read_value_it->is_number()
+            ? min_read_value_it->get<uint64_t>()
+            : std::stoull(min_read_value_it->get<std::string>(), nullptr, 0);
+        s.min_read_value = {unsigned_min, s.value_type};
+    }
+
+    auto max_read_value_it = j.find("max_read_value");
+    if (max_read_value_it != j.end())
+    {
+        uint64_t const unsigned_max =
+          max_read_value_it->is_number()
+            ? max_read_value_it->get<uint64_t>()
+            : std::stoull(max_read_value_it->get<std::string>(), nullptr, 0);
+        s.max_read_value = {unsigned_max, s.value_type};
+    }
+}
 
 void
 to_json(json &j, measure_t const &m)
 {
-    j = json{{"name", m.name},
-             {"accumulating", m.accumulating},
-             {"sampling_period", m.sampling_period},
-             {"report_raw_samples", m.report_raw_samples}};
+    j = json{
+      {"name", m.name},
+      {"sampling_period", m.sampling_period},
+      {"enabled", m.enabled},
+      {"accumulating", m.accumulating},
+      {"report_raw_samples", m.report_raw_samples},
+    };
 
     if (m.source)
     {
-        j["source"]     = m.source.value();
-        j["value_type"] = m.value_type.value();
+        j["source"] = m.source.value();
     }
 }
 
@@ -115,28 +164,7 @@ from_json(json const &j, measure_t &m)
     if (source_it != j.end())
     {
         // Use assignment as ->get_to doesn't work easily with optionals
-        m.source     = source_it->get<source_register_t>();
-        m.value_type = j.at("value_type");
-    }
-
-    auto min_allowed_it = j.find("min_allowed");
-    if (min_allowed_it != j.end())
-    {
-        uint64_t const unsigned_min =
-          min_allowed_it->is_number()
-            ? min_allowed_it->get<uint64_t>()
-            : std::stoull(min_allowed_it->get<std::string>(), nullptr, 0);
-        m.min_allowed = modbus::safe_to_signed<int64_t>(unsigned_min);
-    }
-
-    auto max_allowed_it = j.find("max_allowed");
-    if (max_allowed_it != j.end())
-    {
-        uint64_t const unsigned_max =
-          max_allowed_it->is_number()
-            ? max_allowed_it->get<uint64_t>()
-            : std::stoull(max_allowed_it->get<std::string>(), nullptr, 0);
-        m.max_allowed = modbus::safe_to_signed<int64_t>(unsigned_max);
+        m.source = source_it->get<source_register_t>();
     }
 
     auto enabled_it = j.find("enabled");

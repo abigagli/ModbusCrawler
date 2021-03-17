@@ -40,9 +40,9 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
             {
                 // Normal case: reading from a real modbus device
                 auto const source_value = meas.source.value();
-                auto const reg_size = modbus::reg_size(meas.value_type.value());
+                auto const reg_size = modbus::reg_size(source_value.value_type);
                 auto const value_signed =
-                  modbus::value_signed(meas.value_type.value());
+                  modbus::value_signed(source_value.value_type);
 
                 msg << '|' << source_value.address << "#" << reg_size
                     << (value_signed ? 'I' : 'U');
@@ -51,7 +51,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                 try
                 {
                     LOG_SCOPE_F(1, "Reading register");
-                    if (source_value.type == modbus::regtype::holding)
+                    if (source_value.reg_type == modbus::regtype::holding)
                         reg_value = modbus_cxt.read_holding_registers(
                           source_value.address,
                           reg_size,
@@ -67,19 +67,23 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
 
                     if (value_signed)
                     {
-                        if (reg_value < meas.min_allowed)
+                        int64_t const min_threshold =
+                          source_value.min_read_value.as<int64_t>();
+                        int64_t const max_threshold =
+                          source_value.max_read_value.as<int64_t>();
+                        if (reg_value < min_threshold)
                         {
                             sample_type = Reporter::SampleType::underflow;
                             LOG_S(WARNING)
                               << msg.str() << "|UNDERFLOW: " << reg_value
-                              << " < " << meas.min_allowed;
+                              << " < " << min_threshold;
                         }
-                        else if (reg_value > meas.max_allowed)
+                        else if (reg_value > max_threshold)
                         {
                             sample_type = Reporter::SampleType::overflow;
                             LOG_S(WARNING)
                               << msg.str() << "|OVERFLOW: " << reg_value
-                              << " > " << meas.max_allowed;
+                              << " > " << max_threshold;
                         }
                         else
                         {
@@ -90,24 +94,26 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                     }
                     else
                     {
+                        uint64_t const min_threshold =
+                          source_value.min_read_value.as<uint64_t>();
+                        uint64_t const max_threshold =
+                          source_value.max_read_value.as<uint64_t>();
                         uint64_t const unsigned_value =
                           static_cast<uint64_t>(reg_value);
 
-                        if (unsigned_value < meas.min_allowed)
+                        if (unsigned_value < min_threshold)
                         {
                             sample_type = Reporter::SampleType::underflow;
                             LOG_S(WARNING)
                               << msg.str() << "|UNDERFLOW: " << unsigned_value
-                              << " < "
-                              << static_cast<uint64_t>(meas.min_allowed);
+                              << " < " << min_threshold;
                         }
-                        else if (unsigned_value > meas.max_allowed)
+                        else if (unsigned_value > max_threshold)
                         {
                             sample_type = Reporter::SampleType::overflow;
                             LOG_S(WARNING)
                               << msg.str() << "|OVERFLOW: " << unsigned_value
-                              << " > "
-                              << static_cast<uint64_t>(meas.max_allowed);
+                              << " > " << max_threshold;
                         }
                         else
                         {
