@@ -3,6 +3,7 @@
 #include "json_support.h"
 #include "modbus_types.h"
 
+#include <cinttypes>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -100,8 +101,8 @@ to_json(json &j, source_register_t const &s)
       {"reg_type", s.reg_type},
       {"value_type", s.value_type},
       {"scale_factor", s.scale_factor},
-      {"min_read_value", s.min_read_value.as<uint64_t>()},
-      {"max_read_value", s.min_read_value.as<uint64_t>()},
+      {"min_read_value", s.min_read_value.as<uintmax_t>()},
+      {"max_read_value", s.min_read_value.as<uintmax_t>()},
     };
 }
 
@@ -117,20 +118,22 @@ from_json(json const &j, source_register_t &s)
     auto min_read_value_it = j.find("min_read_value");
     if (min_read_value_it != j.end())
     {
-        uint64_t const unsigned_min =
+        uintmax_t const unsigned_min =
           min_read_value_it->is_number()
-            ? min_read_value_it->get<uint64_t>()
-            : std::stoull(min_read_value_it->get<std::string>(), nullptr, 0);
+            ? min_read_value_it->get<uintmax_t>()
+            : std::strtoumax(
+                min_read_value_it->get<std::string>().c_str(), nullptr, 0);
         s.min_read_value = {unsigned_min, s.value_type};
     }
 
     auto max_read_value_it = j.find("max_read_value");
     if (max_read_value_it != j.end())
     {
-        uint64_t const unsigned_max =
+        uintmax_t const unsigned_max =
           max_read_value_it->is_number()
-            ? max_read_value_it->get<uint64_t>()
-            : std::stoull(max_read_value_it->get<std::string>(), nullptr, 0);
+            ? max_read_value_it->get<uintmax_t>()
+            : std::strtoumax(
+                max_read_value_it->get<std::string>().c_str(), nullptr, 0);
         s.max_read_value = {unsigned_max, s.value_type};
     }
 }

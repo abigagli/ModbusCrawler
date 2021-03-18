@@ -15,6 +15,7 @@
 
 namespace modbus {
 
+static_assert(sizeof(intmax_t) >= sizeof(int64_t));
 namespace detail {
     struct word_be_tag
     {};
@@ -28,15 +29,15 @@ namespace detail {
 
     // Always return signed type, it's up to the consumer to convert
     // to unsigned if desired, and that is a well defined conversion
-    inline int64_t to_val(uint16_t const *regs, int regsize, word_le_tag)
+    inline intmax_t to_val(uint16_t const *regs, int regsize, word_le_tag)
     {
-        int64_t val;
+        intmax_t val;
         switch (regsize)
         {
+            // NOTE: force conversion to signed counterpart (i.e. intxx_t)
+            // before assigning to the wider intmax_t type, to ensure sign
+            // extension is performed
         case 1: {
-            // NOTE: force conversion to signed counterpart before
-            // assigning to the wider type, to ensure sign extension is
-            // performed
             val = static_cast<int16_t>(regs[0]);
         }
         break;
@@ -57,15 +58,15 @@ namespace detail {
         return val;
     }
 
-    inline int64_t to_val(uint16_t const *regs, int regsize, word_be_tag)
+    inline intmax_t to_val(uint16_t const *regs, int regsize, word_be_tag)
     {
-        int64_t val;
+        intmax_t val;
         switch (regsize)
         {
-        case 1:
             // NOTE: force conversion to signed counterpart before
             // assigning to the wider type, to ensure sign extension is
             // performed
+        case 1:
             val = static_cast<int16_t>(regs[0]);
             break;
         case 2:
@@ -244,9 +245,9 @@ public:
                                      modbus_strerror(errno));
     }
 
-    int64_t read_input_registers(int address,
-                                 int regsize,
-                                 word_endianess endianess)
+    intmax_t read_input_registers(int address,
+                                  int regsize,
+                                  word_endianess endianess)
     {
         if (!detail::regsize_supported(regsize))
             throw std::invalid_argument("Invalid regsize: " +
@@ -269,9 +270,9 @@ public:
                  : to_val(regs, regsize, detail::word_be_tag{});
     }
 
-    int64_t read_holding_registers(int address,
-                                   int regsize,
-                                   word_endianess endianess)
+    intmax_t read_holding_registers(int address,
+                                    int regsize,
+                                    word_endianess endianess)
     {
         if (!detail::regsize_supported(regsize))
             throw std::invalid_argument("Invalid regsize: " +

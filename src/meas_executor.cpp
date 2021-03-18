@@ -47,7 +47,7 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                 msg << '|' << source_value.address << "#" << reg_size
                     << (value_signed ? 'I' : 'U');
 
-                int64_t reg_value;
+                intmax_t reg_value;
                 try
                 {
                     LOG_SCOPE_F(1, "Reading register");
@@ -67,10 +67,10 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
 
                     if (value_signed)
                     {
-                        int64_t const min_threshold =
-                          source_value.min_read_value.as<int64_t>();
-                        int64_t const max_threshold =
-                          source_value.max_read_value.as<int64_t>();
+                        intmax_t const min_threshold =
+                          source_value.min_read_value.as<intmax_t>();
+                        intmax_t const max_threshold =
+                          source_value.max_read_value.as<intmax_t>();
                         if (reg_value < min_threshold)
                         {
                             sample_type = Reporter::SampleType::underflow;
@@ -94,12 +94,12 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
                     }
                     else
                     {
-                        uint64_t const min_threshold =
-                          source_value.min_read_value.as<uint64_t>();
-                        uint64_t const max_threshold =
-                          source_value.max_read_value.as<uint64_t>();
-                        uint64_t const unsigned_value =
-                          static_cast<uint64_t>(reg_value);
+                        uintmax_t const min_threshold =
+                          source_value.min_read_value.as<uintmax_t>();
+                        uintmax_t const max_threshold =
+                          source_value.max_read_value.as<uintmax_t>();
+                        uintmax_t const unsigned_value =
+                          static_cast<uintmax_t>(reg_value);
 
                         if (unsigned_value < min_threshold)
                         {

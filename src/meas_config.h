@@ -160,8 +160,8 @@ struct source_register_t
     // we used when reading from the configuration). If we has stored them as
     // unsigned, we would then have to perform the "safe conversion" at runtime
     // each time we needed to compare with signed values read from the devices
-    safe_signed<int64_t> min_read_value{safe_signed_tag::min{}};
-    safe_signed<int64_t> max_read_value{safe_signed_tag::max{}};
+    safe_signed<intmax_t> min_read_value{safe_signed_tag::min{}};
+    safe_signed<intmax_t> max_read_value{safe_signed_tag::max{}};
 };
 struct measure_t
 {
