@@ -106,13 +106,19 @@ Reporter::close_period()
     LOG_S(INFO) << nowsecs.time_since_epoch().count() << "| closing period "
                 << period_id_;
 
-    json jreport{{"when", nowsecs}, {"period_id", period_id_}, {"servers", {}}};
+    json jreport{
+      {"when", nowsecs},
+      {"period_id", period_id_},
+      {"servers", json::array()},
+    }; // namespace measure
 
     for (auto &server_el: results_)
     {
-        json jserver{{"name", server_el.first.server_name},
-                     {"id", server_el.first.server_id},
-                     {"results", {}}};
+        json jserver{
+          {"name", server_el.first.server_name},
+          {"id", server_el.first.server_id},
+          {"results", json::array()},
+        };
 
         for (auto &result_el: server_el.second)
         {
