@@ -37,10 +37,19 @@ target_sources (${APPLICATION_TARGET_NAME}
     ${CMAKE_SOURCE_DIR}/compile_commands.json #<-- Having this as a dependency will cause the custom command below to execute...
     )
 
-    target_compile_options(${APPLICATION_TARGET_NAME}
-    PRIVATE
+target_compile_options (${APPLICATION_TARGET_NAME}
+PRIVATE
+    #$<$<CONFIG:Debug>:-fno-omit-frame-pointer -fsanitize=address -fsanitize=signed-integer-overflow -fsanitize=unsigned-integer-overflow>
+    $<$<CONFIG:Debug>:-fno-omit-frame-pointer -fsanitize=address -fsanitize=signed-integer-overflow>
     -DLOGURU_WITH_STREAMS=1
-    -DLOGURU_WITH_FILEABS=1)
+    -DLOGURU_WITH_FILEABS=1
+)
+
+target_link_options (${APPLICATION_TARGET_NAME}
+PRIVATE
+    #$<$<CONFIG:Debug>:-fsanitize=address -fsanitize=signed-integer-overflow -fsanitize=unsigned-integer-overflow>
+    $<$<CONFIG:Debug>:-fsanitize=address -fsanitize=signed-integer-overflow>
+)
 
 # Since this custom command's OUTPUT is a dependency of our executable target
 # the custom command itself will be executed at build time to produce such OUTPUT 
@@ -70,7 +79,5 @@ target_link_libraries (${APPLICATION_TARGET_NAME}
     MODBUS::static
     nlohmann_json::nlohmann_json
     Threads::Threads) #<<--- Omitting this makes linking fail on Linux: See https://discourse.cmake.org/t/boost-process-target-doesnt-exist-for-thread-linking/2113
-
-target_compile_options (${APPLICATION_TARGET_NAME} PRIVATE $<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 
 install (TARGETS ${APPLICATION_TARGET_NAME} RUNTIME DESTINATION bin)
