@@ -42,7 +42,7 @@ private:
         // Can't easily move these around, since the constructor immediately
         // posts onto the io_context, so any copy / move operation would happen
         // when something has already been scheduled... NOT-GOOD! Let's make
-        // this non-copy / non-moveable
+        // this non-copy/non-move -able
         scheduled_task(scheduled_task const&) = delete;
         scheduled_task& operator=(scheduled_task const&) = delete;
 
@@ -77,8 +77,7 @@ public:
 
 private:
     io_context io_context_;
-    // Need to hold periodic_task behind a pointer as they're non-copyable /
-    // non-moveable
+    // Need to hold periodic_task behind a pointer as they're non-copy/non-move
     std::vector<std::unique_ptr<scheduled_task>> tasks_;
 };
 } // namespace infra

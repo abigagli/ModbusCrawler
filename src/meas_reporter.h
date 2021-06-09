@@ -78,11 +78,16 @@ private:
 
     std::map<server_key_t, std::map<meas_key_t, result_t>> results_;
     unsigned int period_id_ = 0;
+    std::string out_folder_;
 
     [[nodiscard]] static stats_t calculate_stats(decltype(data_t::samples)
                                                    const &samples);
 
+    [[nodiscard]] std::ofstream open_report_file(when_t nowsecs);
+
 public:
+    Reporter(std::string out_folder) : out_folder_(std::move(out_folder)) {}
+
     void configure_measurement(server_key_t const &sk,
                                std::string const &meas_name,
                                descriptor_t descriptor);

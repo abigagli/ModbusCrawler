@@ -96,6 +96,21 @@ Reporter::add_measurement(server_key_t const &sk,
     }
 }
 
+[[nodiscard]] std::ofstream
+Reporter::open_report_file(when_t nowsecs)
+{
+    std::tm tm{};
+    auto const tt = when_t::clock::to_time_t(nowsecs);
+    gmtime_r(&tt, &tm);
+
+    std::ostringstream filename(out_folder_, std::ios::app);
+    filename << "/" << std::setfill('0') << std::setw(2) << tm.tm_year - 100
+             << std::setw(2) << tm.tm_mon + 1 << std::setw(2) << tm.tm_mday
+             << std::setw(2) << tm.tm_hour << std::setw(2) << tm.tm_min
+             << std::setw(2) << tm.tm_sec << ".json";
+
+    return std::ofstream(filename.str());
+}
 void
 Reporter::close_period()
 {
@@ -103,6 +118,7 @@ Reporter::close_period()
     when_t const nowsecs =
       std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
 
+    std::ofstream os = open_report_file(nowsecs);
     LOG_S(INFO) << nowsecs.time_since_epoch().count() << "| closing period "
                 << period_id_;
 
@@ -110,7 +126,7 @@ Reporter::close_period()
       {"when", nowsecs},
       {"period_id", period_id_},
       {"servers", json::array()},
-    }; // namespace measure
+    };
 
     for (auto &server_el: results_)
     {
@@ -170,7 +186,7 @@ Reporter::close_period()
         jreport["servers"].push_back(std::move(jserver));
     }
 
-    std::cout << jreport.dump(2) << std::endl;
+    os << jreport.dump(2) << std::endl;
 }
 
 Reporter::stats_t

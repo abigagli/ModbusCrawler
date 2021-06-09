@@ -24,6 +24,7 @@ usage(int res, std::string const &msg = "")
                 [-v(erbosity) = INFO]
                 [-l(og_path) = "" (disabled)]
                 [-t(ime of log rotation) = 1h]
+                [-o(ut folder) = /tmp]
                 {
                     -m <measconfig_file.json>
                     [-r <reporting period = 60s>]
@@ -52,6 +53,7 @@ namespace defaults {
     auto const answering_time     = 500ms;
     auto const reporting_period   = 60s;
     auto const logrotation_period = 1h;
+    std::string const out_folder  = "/tmp";
 } // namespace defaults
 
 std::string log_path                    = defaults::log_path;
@@ -65,6 +67,7 @@ std::string device      = defaults::device;
 std::string line_config = defaults::line_config;
 int server_id           = -1;
 auto answering_time     = defaults::answering_time;
+std::string out_folder  = defaults::out_folder;
 } // namespace options
 #pragma clang diagnostic pop
 
@@ -112,7 +115,7 @@ main(int argc, char *argv[])
     g_prog_name = argv[0];
     optind      = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "hd:c:l:s:a:m:r:t:")) != -1)
+    while ((ch = getopt(argc, argv, "hd:c:l:s:a:m:r:t:o:")) != -1)
     {
         switch (ch)
         {
@@ -141,6 +144,9 @@ main(int argc, char *argv[])
         case 't':
             options::logrotation_period =
               std::chrono::seconds(std::stoi(optarg));
+            break;
+        case '0':
+            options::out_folder = optarg;
             break;
         case '?':
             return usage(-1);
@@ -174,7 +180,7 @@ main(int argc, char *argv[])
 
     auto meas_config = measure::read_config(options::measconfig_file);
 
-    measure::Reporter reporter;
+    measure::Reporter reporter(options::out_folder);
 
     for (auto const &el: meas_config)
     {
