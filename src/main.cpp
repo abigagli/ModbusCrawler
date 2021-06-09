@@ -51,7 +51,7 @@ namespace defaults {
     std::string const line_config = "9600:8:N:1";
     std::string const log_path    = "";
     auto const answering_time     = 500ms;
-    auto const reporting_period   = 60s;
+    auto const reporting_period   = 5min;
     auto const logrotation_period = 1h;
     std::string const out_folder  = "/tmp";
 } // namespace defaults
