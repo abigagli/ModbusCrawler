@@ -211,7 +211,7 @@ main(int argc, char *argv[])
       "ReportGenerator",
       options::reporting_period,
       [&reporter]() { reporter.close_period(); },
-      infra::PeriodicScheduler::TaskMode::skip_first_execution);
+      infra::PeriodicScheduler::TaskMode::execute_at_multiples_of_period);
 
 #if LOGURU_WITH_FILEABS
     if (!options::log_path.empty())

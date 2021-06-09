@@ -1,8 +1,19 @@
 #include "periodic_scheduler.h"
 
+#include <chrono>
 #include <iostream>
 
 namespace infra {
+
+constexpr time_t
+aligned_up(time_t val, int multiple)
+{
+    auto rem = val % multiple;
+    if (!rem)
+        return val;
+
+    return val + multiple - rem;
+}
 
 #if !defined(ASIO_STANDALONE)
 using namespace boost;
@@ -40,10 +51,22 @@ PeriodicScheduler::scheduled_task::execute(error_code const& e)
 void
 PeriodicScheduler::scheduled_task::start(TaskMode mode)
 {
-    if (mode == TaskMode::execute_at_start)
-        task_();
+    if (mode == TaskMode::execute_at_multiples_of_period)
+    {
+        auto const nowt = std::chrono::system_clock::to_time_t(
+          std::chrono::system_clock::now());
+        auto const aligned_start = aligned_up(nowt, interval_.count());
+        auto const start =
+          std::chrono::system_clock::from_time_t(aligned_start);
+        timer_.expires_at(start);
+    }
+    else
+    {
+        if (mode == TaskMode::execute_at_start)
+            task_();
 
-    timer_.expires_after(interval_);
+        timer_.expires_after(interval_);
+    }
     start_wait();
 }
 

@@ -17,10 +17,12 @@ namespace infra {
 #if defined(ASIO_STANDALONE)
 using asio::io_context;
 using asio::steady_timer;
+using asio::system_timer;
 using asio::error_code;
 #else
 using boost::asio::io_context;
 using boost::asio::steady_timer;
+using boost::asio::system_timer;
 using boost::system::error_code;
 #endif
 
@@ -31,6 +33,7 @@ class PeriodicScheduler
 public:
     enum class TaskMode
     {
+        execute_at_multiples_of_period,
         execute_at_start,
         skip_first_execution,
     };
@@ -38,6 +41,8 @@ public:
 private:
     class scheduled_task
     {
+        using timer_t = system_timer;
+
     public:
         // Can't easily move these around, since the constructor immediately
         // posts onto the io_context, so any copy / move operation would happen
@@ -56,12 +61,16 @@ private:
 
         void start(TaskMode mode);
         void cancel();
+        timer_t::clock_type::time_point nextExpiry() const
+        {
+            return timer_.expiry();
+        }
 
     private:
         void start_wait();
 
         io_context& io_context_;
-        steady_timer timer_;
+        timer_t timer_;
         task_t task_;
         std::string name_;
         std::chrono::seconds interval_;

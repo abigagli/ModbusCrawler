@@ -30,6 +30,8 @@ public:
         }
     };
 
+    static std::string to_compact_string(when_t when);
+
     struct descriptor_t
     {
         std::chrono::seconds period;
@@ -82,8 +84,6 @@ private:
 
     [[nodiscard]] static stats_t calculate_stats(decltype(data_t::samples)
                                                    const &samples);
-
-    [[nodiscard]] std::ofstream open_report_file(when_t nowsecs);
 
 public:
     Reporter(std::string out_folder) : out_folder_(std::move(out_folder)) {}

@@ -96,21 +96,21 @@ Reporter::add_measurement(server_key_t const &sk,
     }
 }
 
-[[nodiscard]] std::ofstream
-Reporter::open_report_file(when_t nowsecs)
+[[nodiscard]] std::string
+Reporter::to_compact_string(when_t when)
 {
     std::tm tm{};
-    auto const tt = when_t::clock::to_time_t(nowsecs);
+    auto const tt = when_t::clock::to_time_t(when);
     gmtime_r(&tt, &tm);
 
-    std::ostringstream filename(out_folder_, std::ios::app);
-    filename << "/" << std::setfill('0') << std::setw(2) << tm.tm_year - 100
-             << std::setw(2) << tm.tm_mon + 1 << std::setw(2) << tm.tm_mday
-             << std::setw(2) << tm.tm_hour << std::setw(2) << tm.tm_min
-             << std::setw(2) << tm.tm_sec << ".json";
+    std::ostringstream name;
+    name << std::setfill('0') << std::setw(2) << tm.tm_year - 100
+         << std::setw(2) << tm.tm_mon + 1 << std::setw(2) << tm.tm_mday
+         << std::setw(2) << tm.tm_hour << std::setw(2) << tm.tm_min;
 
-    return std::ofstream(filename.str());
+    return name.str();
 }
+
 void
 Reporter::close_period()
 {
@@ -118,7 +118,9 @@ Reporter::close_period()
     when_t const nowsecs =
       std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
 
-    std::ofstream os = open_report_file(nowsecs);
+    std::ofstream os =
+      std::ofstream(out_folder_ + '/' + to_compact_string(nowsecs) + ".json");
+
     LOG_S(INFO) << nowsecs.time_since_epoch().count() << "| closing period "
                 << period_id_;
 
