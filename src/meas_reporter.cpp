@@ -4,8 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <loguru.hpp>
 #include <nlohmann/json.hpp>
 
