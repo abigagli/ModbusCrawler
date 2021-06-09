@@ -8,6 +8,7 @@
 #include <iostream>
 #include <loguru.hpp>
 #include <nlohmann/json.hpp>
+#include <sys/stat.h>
 
 using nlohmann::json;
 
@@ -37,6 +38,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Reporter::descriptor_t,
                                    period,
                                    accumulating,
                                    report_raw_samples)
+
+Reporter::Reporter(std::string out_folder) : out_folder_(std::move(out_folder))
+{
+    mkdir(out_folder_.c_str(), 0x777);
+}
 
 void
 Reporter::configure_measurement(server_key_t const &sk,

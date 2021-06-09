@@ -86,7 +86,7 @@ private:
                                                    const &samples);
 
 public:
-    Reporter(std::string out_folder) : out_folder_(std::move(out_folder)) {}
+    Reporter(std::string out_folder);
 
     void configure_measurement(server_key_t const &sk,
                                std::string const &meas_name,
