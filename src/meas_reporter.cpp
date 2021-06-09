@@ -14,10 +14,9 @@ using nlohmann::json;
 
 namespace nlohmann {
 template <>
-struct adl_serializer<std::pair<measure::Reporter::when_t, double>>
+struct adl_serializer<std::pair<infra::when_t, double>>
 {
-    static void to_json(json &j,
-                        std::pair<measure::Reporter::when_t, double> const &p)
+    static void to_json(json &j, std::pair<infra::when_t, double> const &p)
     {
         j = json{{"t", p.first}, {"v", p.second}};
     }
@@ -64,7 +63,7 @@ Reporter::configure_measurement(server_key_t const &sk,
 void
 Reporter::add_measurement(server_key_t const &sk,
                           std::string const &meas_name,
-                          when_t when,
+                          infra::when_t when,
                           double value,
                           SampleType sample_type)
 {
@@ -103,30 +102,16 @@ Reporter::add_measurement(server_key_t const &sk,
     }
 }
 
-[[nodiscard]] std::string
-Reporter::to_compact_string(when_t when)
-{
-    std::tm tm{};
-    auto const tt = when_t::clock::to_time_t(when);
-    gmtime_r(&tt, &tm);
-
-    std::ostringstream name;
-    name << std::setfill('0') << std::setw(2) << tm.tm_year - 100
-         << std::setw(2) << tm.tm_mon + 1 << std::setw(2) << tm.tm_mday
-         << std::setw(2) << tm.tm_hour << std::setw(2) << tm.tm_min;
-
-    return name.str();
-}
-
 void
 Reporter::close_period()
 {
+    using infra::when_t;
     ++period_id_;
     when_t const nowsecs =
       std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
 
-    std::ofstream os =
-      std::ofstream(out_folder_ + '/' + to_compact_string(nowsecs) + ".json");
+    std::ofstream os = std::ofstream(
+      out_folder_ + '/' + infra::to_compact_string(nowsecs) + ".json");
 
     LOG_S(INFO) << nowsecs.time_since_epoch().count() << "| closing period "
                 << period_id_;

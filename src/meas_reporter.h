@@ -1,5 +1,6 @@
 #pragma once
 
+#include "infra.hpp"
 #include "meas_config.h"
 
 #include <limits>
@@ -18,8 +19,6 @@ public:
         underflow,
         overflow,
     };
-    using when_t =
-      std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>;
     struct server_key_t
     {
         std::string server_name;
@@ -29,8 +28,6 @@ public:
             return server_name + "@" + std::to_string(server_id);
         }
     };
-
-    static std::string to_compact_string(when_t when);
 
     struct descriptor_t
     {
@@ -50,7 +47,7 @@ private:
 
     struct data_t
     {
-        std::vector<std::pair<when_t, double>> samples;
+        std::vector<std::pair<infra::when_t, double>> samples;
         size_t total_read_failures{};
         size_t period_read_failures{};
         size_t total_underflows{};
@@ -94,7 +91,7 @@ public:
 
     void add_measurement(server_key_t const &sk,
                          std::string const &meas_name,
-                         when_t when,
+                         infra::when_t when,
                          double value,
                          SampleType sample_type);
 

@@ -196,9 +196,9 @@ main(int argc, char *argv[])
     }
 
     /*********************************************
-    measure::Reporter::when_t const nowsecs =
-            std::chrono::time_point_cast<measure::Reporter::when_t::duration>(
-                    measure::Reporter::when_t::clock::now());
+    infra::when_t const nowsecs =
+            std::chrono::time_point_cast<infra::when_t::duration>(
+                    infra::when_t::clock::now());
     for (int i = 0; i < 5; ++i)
         reporter.add_measurement({"RANDOM", 666}, "Value 1", nowsecs +
     std::chrono::seconds(i), 3.14 + i);

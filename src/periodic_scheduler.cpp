@@ -1,10 +1,11 @@
 #include "periodic_scheduler.h"
 
+#include "infra.hpp"
+
 #include <chrono>
 #include <iostream>
 
 namespace infra {
-
 constexpr time_t
 aligned_up(time_t val, int multiple)
 {
@@ -53,11 +54,10 @@ PeriodicScheduler::scheduled_task::start(TaskMode mode)
 {
     if (mode == TaskMode::execute_at_multiples_of_period)
     {
-        auto const nowt = std::chrono::system_clock::to_time_t(
-          std::chrono::system_clock::now());
+        auto const nowt =
+          infra::when_t::clock::to_time_t(infra::when_t::clock::now());
         auto const aligned_start = aligned_up(nowt, interval_.count());
-        auto const start =
-          std::chrono::system_clock::from_time_t(aligned_start);
+        auto const start = infra::when_t::clock::from_time_t(aligned_start);
         timer_.expires_at(start);
     }
     else

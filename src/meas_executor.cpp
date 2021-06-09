@@ -22,9 +22,9 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
 
         auto const meas_task = [this, &reporter, &modbus_cxt, meas]()
         {
-            Reporter::when_t const nowsecs =
-              std::chrono::time_point_cast<Reporter::when_t::duration>(
-                Reporter::when_t::clock::now());
+            infra::when_t const nowsecs =
+              std::chrono::time_point_cast<infra::when_t::duration>(
+                infra::when_t::clock::now());
 
             std::ostringstream msg;
             auto const period = meas.sampling_period.count();
