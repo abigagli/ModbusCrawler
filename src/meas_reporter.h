@@ -95,7 +95,7 @@ public:
                          double value,
                          SampleType sample_type);
 
-    void close_period();
+    void close_period(infra::when_t now);
 };
 
 inline bool

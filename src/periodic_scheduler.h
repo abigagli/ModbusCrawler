@@ -1,5 +1,7 @@
 #pragma once
 
+#include "infra.hpp"
+
 #if defined(ASIO_STANDALONE)
 #    include <asio.hpp>
 #else
@@ -26,7 +28,7 @@ using boost::asio::system_timer;
 using boost::system::error_code;
 #endif
 
-using task_t = std::function<void()>;
+using task_t = std::function<void(infra::when_t)>;
 
 class PeriodicScheduler
 {

@@ -210,7 +210,7 @@ main(int argc, char *argv[])
     scheduler.addTask(
       "ReportGenerator",
       options::reporting_period,
-      [&reporter]() { reporter.close_period(); },
+      [&reporter](infra::when_t now) { reporter.close_period(now); },
       infra::PeriodicScheduler::TaskMode::execute_at_multiples_of_period);
 
 #if LOGURU_WITH_FILEABS
@@ -219,7 +219,7 @@ main(int argc, char *argv[])
         scheduler.addTask(
           "LogRotator",
           options::logrotation_period,
-          [&]()
+          [&](infra::when_t)
           {
               static int progr                = 0;
               int constexpr num_rotated_files = 5;

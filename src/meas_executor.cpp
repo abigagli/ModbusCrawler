@@ -1,5 +1,6 @@
 #include "meas_executor.h"
 
+#include "infra.hpp"
 #include "meas_reporter.h"
 #include "periodic_scheduler.h"
 
@@ -20,12 +21,9 @@ Executor::add_schedule(infra::PeriodicScheduler &scheduler,
     {
         assert(meas.enabled);
 
-        auto const meas_task = [this, &reporter, &modbus_cxt, meas]()
+        auto const meas_task =
+          [this, &reporter, &modbus_cxt, meas](infra::when_t nowsecs)
         {
-            infra::when_t const nowsecs =
-              std::chrono::time_point_cast<infra::when_t::duration>(
-                infra::when_t::clock::now());
-
             std::ostringstream msg;
             auto const period = meas.sampling_period.count();
 

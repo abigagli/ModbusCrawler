@@ -1,7 +1,5 @@
 #include "periodic_scheduler.h"
 
-#include "infra.hpp"
-
 #include <chrono>
 #include <iostream>
 
@@ -40,9 +38,10 @@ PeriodicScheduler::scheduled_task::execute(error_code const& e)
 {
     if (e != asio::error::operation_aborted)
     {
-        task_();
+        auto const now = timer_.expiry();
+        task_(std::chrono::time_point_cast<infra::when_t::duration>(now));
 
-        timer_.expires_at(timer_.expiry() + interval_);
+        timer_.expires_at(now + interval_);
         start_wait();
     }
     else
@@ -63,7 +62,10 @@ PeriodicScheduler::scheduled_task::start(TaskMode mode)
     else
     {
         if (mode == TaskMode::execute_at_start)
-            task_();
+        {
+            task_(std::chrono::time_point_cast<infra::when_t::duration>(
+              infra::when_t::clock::now()));
+        }
 
         timer_.expires_after(interval_);
     }

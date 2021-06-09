@@ -103,21 +103,18 @@ Reporter::add_measurement(server_key_t const &sk,
 }
 
 void
-Reporter::close_period()
+Reporter::close_period(infra::when_t now)
 {
-    using infra::when_t;
     ++period_id_;
-    when_t const nowsecs =
-      std::chrono::time_point_cast<when_t::duration>(when_t::clock::now());
 
-    std::ofstream os = std::ofstream(
-      out_folder_ + '/' + infra::to_compact_string(nowsecs) + ".json");
+    std::ofstream os = std::ofstream(out_folder_ + '/' +
+                                     infra::to_compact_string(now) + ".json");
 
-    LOG_S(INFO) << nowsecs.time_since_epoch().count() << "| closing period "
+    LOG_S(INFO) << now.time_since_epoch().count() << "| closing period "
                 << period_id_;
 
     json jreport{
-      {"when", nowsecs},
+      {"when", now},
       {"period_id", period_id_},
       {"servers", json::array()},
     };
