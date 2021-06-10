@@ -145,7 +145,7 @@ main(int argc, char *argv[])
             options::logrotation_period =
               std::chrono::seconds(std::stoi(optarg));
             break;
-        case '0':
+        case 'o':
             options::out_folder = optarg;
             break;
         case '?':
