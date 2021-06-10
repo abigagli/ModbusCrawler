@@ -133,6 +133,7 @@ struct modbus_server_t
     bool enabled            = true;
     std::string line_config = "9600:8:N:1";
     std::chrono::milliseconds answering_time{500};
+    std::chrono::seconds sampling_period{5};
 };
 struct source_register_t
 {
@@ -166,7 +167,11 @@ struct source_register_t
 struct measure_t
 {
     std::string name;
-    std::chrono::seconds sampling_period;
+
+    // Kind-of-optional... If present in the json, it overrides the server's
+    // value, otherwise it will get set to the server's value when creating the
+    // model object
+    std::chrono::seconds sampling_period = std::chrono::seconds::zero();
 
     // These are not present when using a random source for testing
     optional<source_register_t> source;

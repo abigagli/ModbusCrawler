@@ -3,6 +3,7 @@
 #include "json_support.h"
 #include "modbus_types.h"
 
+#include <algorithm>
 #include <cinttypes>
 #include <nlohmann/json.hpp>
 
@@ -42,6 +43,7 @@ to_json(json &j, modbus_server_t const &s)
     j = json{{"modbus_id", s.modbus_id},
              {"name", s.name},
              {"serial_device", s.serial_device},
+             {"sampling_period", s.sampling_period},
              {"line_config", s.line_config},
              {"answering_time_ms", s.answering_time}};
 }
@@ -49,12 +51,15 @@ to_json(json &j, modbus_server_t const &s)
 void
 from_json(json const &j, modbus_server_t &s)
 {
-    auto serial_device_it = j.find("serial_device");
-
     auto enabled_it = j.find("enabled");
     if (enabled_it != j.end())
         enabled_it->get_to(s.enabled);
 
+    auto sampling_period_it = j.find("sampling_period");
+    if (sampling_period_it != j.end())
+        sampling_period_it->get_to(s.sampling_period);
+
+    auto serial_device_it = j.find("serial_device");
     if (serial_device_it != j.end()) // A real modbus source
     {
         serial_device_it->get_to(s.serial_device);
@@ -143,8 +148,8 @@ to_json(json &j, measure_t const &m)
 {
     j = json{
       {"name", m.name},
-      {"sampling_period", m.sampling_period},
       {"enabled", m.enabled},
+      {"sampling_period", m.sampling_period},
       {"accumulating", m.accumulating},
       {"report_raw_samples", m.report_raw_samples},
     };
@@ -160,10 +165,11 @@ from_json(json const &j, measure_t &m)
 {
     j.at("name").get_to(m.name);
 
-    j.at("sampling_period").get_to(m.sampling_period);
+    auto sampling_period_it = j.find("sampling_period");
+    if (sampling_period_it != j.end())
+        sampling_period_it->get_to(m.sampling_period);
 
     auto source_it = j.find("source");
-
     if (source_it != j.end())
     {
         // Use assignment as ->get_to doesn't work easily with optionals
@@ -217,6 +223,16 @@ read_config(std::string const &measconfig_file)
                                       [](auto const &el)
                                       { return !el.enabled; }),
                        std::end(measures));
+
+        // Use the server's sampling_period if a measure's specific one was not
+        // provided
+        std::for_each(std::begin(measures),
+                      std::end(measures),
+                      [&server = desc.server](auto &m)
+                      {
+                          if (m.sampling_period == std::chrono::seconds::zero())
+                              m.sampling_period = server.sampling_period;
+                      });
     }
 
     return measure_descriptors;
