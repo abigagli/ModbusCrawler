@@ -27,7 +27,7 @@ usage(int res, std::string const &msg = "")
                 [-o(ut folder) = /tmp]
                 {
                     -m <measconfig_file.json>
-                    [-r <reporting period = 60s>]
+                    [-r <reporting period = 5min>]
 
                     |
 
@@ -36,7 +36,7 @@ usage(int res, std::string const &msg = "")
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
                     <regnum>
-                    <regsize <=4l/4b}>
+                    <regsize <=4l/4b>
                 })"
               << std::endl;
     return res;
