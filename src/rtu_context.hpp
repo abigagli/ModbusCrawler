@@ -31,6 +31,8 @@ namespace detail {
     // to unsigned if desired, and that is a well defined conversion
     inline intmax_t to_val(uint16_t const *regs, int regsize, word_le_tag)
     {
+        // Assumes byte-level little endianess, word/register-level little
+        // endianess
         intmax_t val;
         switch (regsize)
         {
@@ -60,6 +62,8 @@ namespace detail {
 
     inline intmax_t to_val(uint16_t const *regs, int regsize, word_be_tag)
     {
+        // Assumes byte-level little endianess, word/register-level big
+        // endianess
         intmax_t val;
         switch (regsize)
         {
