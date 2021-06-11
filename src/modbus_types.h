@@ -21,7 +21,6 @@ enum class word_endianess
 {
     little,
     big,
-    dontcare
 };
 
 inline bool

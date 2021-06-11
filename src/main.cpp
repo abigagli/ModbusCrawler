@@ -36,7 +36,7 @@ usage(int res, std::string const &msg = "")
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
                     <regnum>
-                    <regsize <=4l/4b>
+                    <regsize ={1|2|4}{l|b}>
                 })"
               << std::endl;
     return res;
@@ -77,19 +77,14 @@ single_read(int address, std::string regspec)
     int const regsize = regspec[0] - '0';
     modbus::word_endianess word_endianess;
 
-    if (regsize > 1)
-    {
-        if (regsize > 4)
-            return usage(-1, "regsize must be <= 4");
+    if (regsize != 1 && regsize != 2 && regsize != 4)
+        return usage(-1, "regsize must be <= 4");
 
-        if (regspec.size() != 2 || (regspec[1] != 'l' && regspec[1] != 'b'))
-            return usage(-1, "invalid regsize specification: " + regspec);
+    if (regspec.size() != 2 || (regspec[1] != 'l' && regspec[1] != 'b'))
+        return usage(-1, "invalid regsize specification: " + regspec);
 
-        word_endianess = regspec[1] == 'l' ? modbus::word_endianess::little
-                                           : modbus::word_endianess::big;
-    }
-    else
-        word_endianess = modbus::word_endianess::dontcare;
+    word_endianess = regspec[1] == 'l' ? modbus::word_endianess::little
+                                       : modbus::word_endianess::big;
 
     modbus::RTUContext ctx(
       options::server_id,

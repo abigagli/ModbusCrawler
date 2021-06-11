@@ -14,7 +14,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(word_endianess,
                              {
                                {word_endianess::little, "little"},
                                {word_endianess::big, "big"},
-                               {word_endianess::dontcare, nullptr},
                              })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(regtype,
