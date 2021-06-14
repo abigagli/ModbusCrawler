@@ -5,6 +5,7 @@
 #include "rtu_context.hpp"
 
 #include <chrono>
+#include <cinttypes>
 #include <iostream>
 #include <loguru.hpp>
 #include <string>
@@ -24,19 +25,28 @@ usage(int res, std::string const &msg = "")
                 [-v(erbosity) = INFO]
                 [-l(og_path) = "" (disabled)]
                 [-t(ime of log rotation) = 1h]
-                [-o(ut folder) = /tmp]
                 {
                     -m <measconfig_file.json>
                     [-r <reporting period = 5min>]
+                    [-o(ut folder) = /tmp]
 
                     |
-
+                    -R
                     [-d <device = /dev/ttyUSB0>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
                     <regnum>
                     <regsize ={1|2|4}{l|b}>
+
+                    |
+                    -W
+                    [-d <device = /dev/ttyUSB0>]
+                    [-c <line_config ="9600:8:N:1">]
+                    [-a <answering_timeout_ms =500>]
+                    -s <server_id>
+                    <regnum>
+                    <value [0..65535]>
                 })"
               << std::endl;
     return res;
@@ -46,7 +56,14 @@ usage(int res, std::string const &msg = "")
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "cert-err58-cpp"
 namespace options {
+enum class mode_t
+{
+    meas_scheduler,
+    single_read,
+    single_write
+};
 namespace defaults {
+    mode_t mode                   = mode_t::meas_scheduler;
     std::string const device      = "/dev/ttyUSB0";
     std::string const line_config = "9600:8:N:1";
     std::string const log_path    = "";
@@ -56,6 +73,7 @@ namespace defaults {
     std::string const out_folder  = "/tmp";
 } // namespace defaults
 
+mode_t mode                             = defaults::mode;
 std::string log_path                    = defaults::log_path;
 std::chrono::seconds logrotation_period = defaults::logrotation_period;
 // Measure mode specific
@@ -96,7 +114,25 @@ single_read(int address, std::string regspec)
     int64_t const val =
       ctx.read_holding_registers(address, regsize, word_endianess);
 
-    LOG_S(INFO) << "REGISTER " << address << ": " << val;
+    LOG_S(INFO) << "SINGLE READ REGISTER " << address << ": " << val;
+    return 0;
+}
+
+int
+single_write(int address, intmax_t value)
+{
+    if (value < 0 || value > std::numeric_limits<uint16_t>::max())
+        return usage(-1, "invalid value: must be [0..65535]");
+
+    modbus::RTUContext ctx(
+      options::server_id,
+      "Server_" + std::to_string(options::server_id),
+      modbus::SerialLine(options::device, options::line_config),
+      options::answering_time,
+      loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
+
+    ctx.write_holding_register(address, value);
+    LOG_S(INFO) << "SINGLE WRITE REGISTER " << address << ": " << value;
     return 0;
 }
 
@@ -110,10 +146,16 @@ main(int argc, char *argv[])
     g_prog_name = argv[0];
     optind      = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "hd:c:l:s:a:m:r:t:o:")) != -1)
+    while ((ch = getopt(argc, argv, "RWhd:c:l:s:a:m:r:t:o:")) != -1)
     {
         switch (ch)
         {
+        case 'R':
+            options::mode = options::mode_t::single_read;
+            break;
+        case 'W':
+            options::mode = options::mode_t::single_write;
+            break;
         case 'd':
             options::device = optarg;
             break;
@@ -163,15 +205,28 @@ main(int argc, char *argv[])
           log_file, loguru::FileMode::Truncate, loguru::Verbosity_MAX);
     }
 
-    if (options::measconfig_file.empty())
+    if (options::mode == options::mode_t::single_read)
     {
         if (options::server_id < 0 || argc < 2)
-            return usage(-1, "missing mandatory parameters");
+            return usage(-1, "missing mandatory parameters for single read");
 
         int const address   = std::stoi(argv[0]);
         char const *regspec = argv[1];
         return single_read(address, regspec);
     }
+    else if (options::mode == options::mode_t::single_write)
+    {
+        if (options::server_id < 0 || argc < 2)
+            return usage(-1, "missing mandatory parameters for single write");
+
+        int const address = std::stoi(argv[0]);
+        intmax_t value    = std::strtoimax(argv[1], nullptr, 0);
+        return single_write(address, value);
+    }
+
+
+    if (options::measconfig_file.empty())
+        return usage(-1, "missing measures config file parameter");
 
     auto meas_config = measure::read_config(options::measconfig_file);
 

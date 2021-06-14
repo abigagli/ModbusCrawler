@@ -31,8 +31,8 @@ namespace detail {
     // to unsigned if desired, and that is a well defined conversion
     inline intmax_t to_val(uint16_t const *regs, int regsize, word_le_tag)
     {
-        // Assumes byte-level little endianess, word/register-level little
-        // endianess
+        // Assumes byte-level little endian, word/register-level little
+        // endian
         intmax_t val;
         switch (regsize)
         {
@@ -62,8 +62,8 @@ namespace detail {
 
     inline intmax_t to_val(uint16_t const *regs, int regsize, word_be_tag)
     {
-        // Assumes byte-level little endianess, word/register-level big
-        // endianess
+        // Assumes byte-level little endian, word/register-level big
+        // endian
         intmax_t val;
         switch (regsize)
         {
@@ -262,7 +262,7 @@ public:
           modbus_read_input_registers(modbus_source_.get(),
                                       address,
                                       regsize,
-                                      regs); // Input register: Code 04
+                                      regs); // Input register: Code 0x04
 
         if (api_rv != regsize)
             throw std::runtime_error(
@@ -286,7 +286,7 @@ public:
         int api_rv = modbus_read_registers(modbus_source_.get(),
                                            address,
                                            regsize,
-                                           regs); // Holding register: Code 03
+                                           regs); // Holding register: Code 0x03
 
         if (api_rv != regsize)
             throw std::runtime_error(
@@ -296,6 +296,19 @@ public:
         return endianess == word_endianess::little
                  ? to_val(regs, regsize, detail::word_le_tag{})
                  : to_val(regs, regsize, detail::word_be_tag{});
+    }
+
+    void write_holding_register(int address, uint16_t value)
+    {
+        int api_rv =
+          modbus_write_register(modbus_source_.get(),
+                                address,
+                                value); // Write Holding Register: Code 0x06
+
+        if (api_rv != 1)
+            throw std::runtime_error(
+              std::string("Failed modbus_write_register: ") +
+              modbus_strerror(errno));
     }
 
     [[nodiscard]] auto read_random_value() const { return (*random_source_)(); }
