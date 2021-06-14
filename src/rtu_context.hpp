@@ -31,8 +31,9 @@ namespace detail {
     // to unsigned if desired, and that is a well defined conversion
     inline intmax_t to_val(uint16_t const *regs, int regsize, word_le_tag)
     {
-        // Assumes byte-level little endian, word/register-level little
-        // endian
+        // Byte-level is big-endian as per modbus spec, and it is handled by
+        // libmodbus. Here we handle word/register-level endianness, in this
+        // case little: LSW->MSW
         intmax_t val;
         switch (regsize)
         {
@@ -62,8 +63,9 @@ namespace detail {
 
     inline intmax_t to_val(uint16_t const *regs, int regsize, word_be_tag)
     {
-        // Assumes byte-level little endian, word/register-level big
-        // endian
+        // Byte-level is big-endian as per modbus spec, and it is handled by
+        // libmodbus. Here we handle word/register-level endianness, in this
+        // case big: MSW->LSW
         intmax_t val;
         switch (regsize)
         {
