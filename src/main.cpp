@@ -116,8 +116,8 @@ single_read(int address, std::string regspec)
         {
             LOG_S(INFO) << "RAW READ: " << std::setw(8) << std::hex
                         << address + i << ": " << std::setw(8) << registers[i]
-                        << " (" << std::dec << std::setw(10) << registers[i]
-                        << ")\n";
+                        << " (dec " << std::dec << std::setw(10) << registers[i]
+                        << ")";
         }
     }
     else
