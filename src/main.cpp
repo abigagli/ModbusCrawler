@@ -32,12 +32,12 @@ usage(int res, std::string const &msg = "")
 
                     |
                     -R
-                    [-d <device = /dev/ttyUSB0>]
+                    [-d <device =/dev/ttyUSB0>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
                     <regnum>
-                    <regsize ={1|2|4}{l|b}>
+                    <regsize ={{1|2|4}{l|b} | Nr}>
 
                     |
                     -W
@@ -92,14 +92,42 @@ std::string out_folder  = defaults::out_folder;
 int
 single_read(int address, std::string regspec)
 {
+    assert(!regspec.empty());
+
+    auto const last_char = regspec.back();
+    if (regspec.size() < 2 ||
+        (last_char != 'l' && last_char != 'b' && last_char != 'r'))
+        return usage(-1, "invalid regsize specification: " + regspec);
+
+    if (last_char == 'r')
+    {
+        // Raw read
+        int const regsize = std::strtol(regspec.c_str(), nullptr, 0);
+        modbus::RTUContext ctx(
+          options::server_id,
+          "Server_" + std::to_string(options::server_id),
+          modbus::SerialLine(options::device, options::line_config),
+          options::answering_time,
+          loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
+
+        auto registers = ctx.read_holding_registers(address, regsize);
+        std::ostringstream dump;
+
+        for (auto i = 0ULL; i != registers.size(); ++i)
+        {
+            dump << std::setw(8) << std::hex << address + i << ": "
+                 << std::setw(8) << registers[i] << " (" << std::dec
+                 << std::setw(10) << registers[i] << ")\n";
+        }
+
+        LOG_S(INFO) << "RAW READ REGISTER: " << dump.str();
+    }
+
     int const regsize = regspec[0] - '0';
     modbus::word_endianess word_endianess;
 
     if (regsize != 1 && regsize != 2 && regsize != 4)
         return usage(-1, "regsize must be <= 4");
-
-    if (regspec.size() != 2 || (regspec[1] != 'l' && regspec[1] != 'b'))
-        return usage(-1, "invalid regsize specification: " + regspec);
 
     word_endianess = regspec[1] == 'l' ? modbus::word_endianess::little
                                        : modbus::word_endianess::big;
@@ -210,7 +238,7 @@ main(int argc, char *argv[])
         if (options::server_id < 0 || argc < 2)
             return usage(-1, "missing mandatory parameters for single read");
 
-        int const address   = std::stoi(argv[0]);
+        int const address   = std::strtol(argv[0], nullptr, 0);
         char const *regspec = argv[1];
         return single_read(address, regspec);
     }
@@ -219,7 +247,7 @@ main(int argc, char *argv[])
         if (options::server_id < 0 || argc < 2)
             return usage(-1, "missing mandatory parameters for single write");
 
-        int const address = std::stoi(argv[0]);
+        int const address = std::strtol(argv[0], nullptr, 0);
         intmax_t value    = std::strtoimax(argv[1], nullptr, 0);
         return single_write(address, value);
     }

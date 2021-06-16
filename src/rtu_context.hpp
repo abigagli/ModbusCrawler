@@ -300,6 +300,41 @@ public:
                  : to_val(regs, regsize, detail::word_be_tag{});
     }
 
+    std::vector<uint16_t> read_input_registers(int address, int regsize)
+    {
+        std::vector<uint16_t> registers(regsize);
+        int api_rv = modbus_read_input_registers(
+          modbus_source_.get(),
+          address,
+          regsize,
+          registers.data()); // Holding register: Code 0x03
+
+        if (api_rv != regsize)
+            throw std::runtime_error(
+              std::string("Failed modbus_read_input_registers: ") +
+              modbus_strerror(errno));
+
+        return registers;
+    }
+
+    std::vector<uint16_t> read_holding_registers(int address, int regsize)
+    {
+        std::vector<uint16_t> registers(regsize);
+        int api_rv = modbus_read_registers(
+          modbus_source_.get(),
+          address,
+          regsize,
+          registers.data()); // Holding register: Code 0x03
+
+        if (api_rv != regsize)
+            throw std::runtime_error(
+              std::string("Failed modbus_read_registers: ") +
+              modbus_strerror(errno));
+
+        return registers;
+    }
+
+
     void write_holding_register(int address, uint16_t value)
     {
         int api_rv =
