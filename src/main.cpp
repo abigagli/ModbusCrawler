@@ -111,38 +111,38 @@ single_read(int address, std::string regspec)
           loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
 
         auto registers = ctx.read_holding_registers(address, regsize);
-        std::ostringstream dump;
 
         for (auto i = 0ULL; i != registers.size(); ++i)
         {
-            dump << std::setw(8) << std::hex << address + i << ": "
-                 << std::setw(8) << registers[i] << " (" << std::dec
-                 << std::setw(10) << registers[i] << ")\n";
+            LOG_S(INFO) << "RAW READ: " << std::setw(8) << std::hex
+                        << address + i << ": " << std::setw(8) << registers[i]
+                        << " (" << std::dec << std::setw(10) << registers[i]
+                        << ")\n";
         }
-
-        LOG_S(INFO) << "RAW READ REGISTER: " << dump.str();
     }
+    else
+    {
+        int const regsize = regspec[0] - '0';
+        modbus::word_endianess word_endianess;
 
-    int const regsize = regspec[0] - '0';
-    modbus::word_endianess word_endianess;
+        if (regsize != 1 && regsize != 2 && regsize != 4)
+            return usage(-1, "regsize must be <= 4");
 
-    if (regsize != 1 && regsize != 2 && regsize != 4)
-        return usage(-1, "regsize must be <= 4");
+        word_endianess = regspec[1] == 'l' ? modbus::word_endianess::little
+                                           : modbus::word_endianess::big;
 
-    word_endianess = regspec[1] == 'l' ? modbus::word_endianess::little
-                                       : modbus::word_endianess::big;
+        modbus::RTUContext ctx(
+          options::server_id,
+          "Server_" + std::to_string(options::server_id),
+          modbus::SerialLine(options::device, options::line_config),
+          options::answering_time,
+          loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
 
-    modbus::RTUContext ctx(
-      options::server_id,
-      "Server_" + std::to_string(options::server_id),
-      modbus::SerialLine(options::device, options::line_config),
-      options::answering_time,
-      loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
+        int64_t const val =
+          ctx.read_holding_registers(address, regsize, word_endianess);
 
-    int64_t const val =
-      ctx.read_holding_registers(address, regsize, word_endianess);
-
-    LOG_S(INFO) << "SINGLE READ REGISTER " << address << ": " << val;
+        LOG_S(INFO) << "SINGLE READ REGISTER " << address << ": " << val;
+    }
     return 0;
 }
 
