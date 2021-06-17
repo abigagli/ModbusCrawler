@@ -102,7 +102,7 @@ single_read(int address, std::string regspec)
     if (last_char == 'r')
     {
         // Raw read
-        int const regsize = std::strtol(regspec.c_str(), nullptr, 0);
+        int const num_regs = std::strtol(regspec.c_str(), nullptr, 0);
         modbus::RTUContext ctx(
           options::server_id,
           "Server_" + std::to_string(options::server_id),
@@ -110,14 +110,15 @@ single_read(int address, std::string regspec)
           options::answering_time,
           loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
 
-        auto registers = ctx.read_holding_registers(address, regsize);
+        std::vector<uint16_t> registers =
+          ctx.read_holding_registers(address, num_regs);
 
-        for (auto i = 0ULL; i != registers.size(); ++i)
+        for (auto r = 0ULL; r != registers.size(); ++r)
         {
-            LOG_S(INFO) << "RAW READ: " << std::setw(8) << std::hex
-                        << address + i << ": " << std::setw(8) << registers[i]
-                        << " (dec " << std::dec << std::setw(10) << registers[i]
-                        << ")";
+            auto const cur_addr = address + r * sizeof(uint16_t);
+            LOG_S(INFO) << "RAW READ: " << std::setw(8) << std::hex << cur_addr
+                        << ": " << std::setw(8) << registers[r] << " (dec "
+                        << std::dec << std::setw(10) << registers[r] << ")";
         }
     }
     else
