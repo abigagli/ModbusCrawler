@@ -171,8 +171,6 @@ public:
 
 class RTUContext
 {
-public:
-private:
     struct ctx_deleter
     {
         void operator()(modbus_t *ctx)
@@ -345,6 +343,41 @@ public:
         if (api_rv != 1)
             throw std::runtime_error(
               std::string("Failed modbus_write_register: ") +
+              modbus_strerror(errno));
+    }
+
+    void write_multiple_registers(int address,
+                                  std::vector<uint16_t> const &registers)
+    {
+        auto const chunks    = registers.size() / MODBUS_MAX_WRITE_REGISTERS;
+        auto const remaining = registers.size() % MODBUS_MAX_WRITE_REGISTERS;
+
+        int api_rv;
+        uint16_t const *regs = registers.data();
+        for (auto chunk = 0ULL; chunk != chunks; ++chunk)
+        {
+            api_rv = modbus_write_registers(
+              modbus_source_.get(),
+              address,
+              MODBUS_MAX_WRITE_REGISTERS,
+              regs); // Write Multiple Registers: Code 0x10
+            if (api_rv != MODBUS_MAX_WRITE_REGISTERS)
+                throw std::runtime_error(
+                  std::string("Failed modbus_write_registers chunk #") +
+                  std::to_string(chunk) + ": " + modbus_strerror(errno));
+
+            address += MODBUS_MAX_WRITE_REGISTERS;
+            regs += MODBUS_MAX_WRITE_REGISTERS;
+        }
+
+        api_rv =
+          modbus_write_registers(modbus_source_.get(),
+                                 address,
+                                 remaining,
+                                 regs); // Write Multiple Registers: Code 0x10
+        if (api_rv != remaining)
+            throw std::runtime_error(
+              std::string("Failed modbus_write_registers remaining: ") +
               modbus_strerror(errno));
     }
 

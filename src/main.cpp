@@ -47,6 +47,15 @@ usage(int res, std::string const &msg = "")
                     -s <server_id>
                     <regnum>
                     <value [0..65535]>
+
+                    |
+                    -F
+                    [-d <device = /dev/ttyUSB0>]
+                    [-c <line_config ="9600:8:N:1">]
+                    [-a <answering_timeout_ms =500>]
+                    -s <server_id>
+                    <regnum>
+                    <filename>
                 })"
               << std::endl;
     return res;
@@ -60,7 +69,8 @@ enum class mode_t
 {
     meas_scheduler,
     single_read,
-    single_write
+    single_write,
+    file_transfer,
 };
 namespace defaults {
     mode_t mode                   = mode_t::meas_scheduler;
@@ -165,6 +175,65 @@ single_write(int address, intmax_t value)
     return 0;
 }
 
+int
+file_transfer(int address, std::string filename)
+{
+    std::ifstream ifs(filename, std::ios::binary);
+
+    if (!ifs)
+        return usage(-1, "invalid filename " + filename);
+
+    std::istreambuf_iterator<char> it{ifs}, ibe;
+
+    std::vector<uint16_t> content;
+    size_t bytes = 0;
+
+    enum class byte
+    {
+        low,
+        high
+    } phase = byte::low;
+
+    uint8_t low_byte;
+
+    while (it != ibe)
+    {
+        if (phase == byte::low)
+        {
+            low_byte = static_cast<uint8_t>(*it++);
+            phase    = byte::high;
+        }
+        else
+        {
+            uint16_t const high_byte = static_cast<uint8_t>(*it++);
+
+            content.push_back(
+              static_cast<uint16_t>((high_byte << 8) | low_byte));
+            phase = byte::low;
+        }
+
+        ++bytes;
+    }
+
+    if (phase == byte::high)
+        content.push_back(low_byte);
+
+    LOG_S(INFO) << "FILE TRANSFER read " << bytes << " for " << content.size()
+                << " registers";
+
+    modbus::RTUContext ctx(
+      options::server_id,
+      "Server_" + std::to_string(options::server_id),
+      modbus::SerialLine(options::device, options::line_config),
+      options::answering_time,
+      loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
+
+    ctx.write_multiple_registers(address, content);
+    LOG_S(INFO) << "FILE TRANSFER completed";
+    return 0;
+}
+
+
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "concurrency-mt-unsafe"
 int
@@ -175,7 +244,7 @@ main(int argc, char *argv[])
     g_prog_name = argv[0];
     optind      = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "RWhd:c:l:s:a:m:r:t:o:")) != -1)
+    while ((ch = getopt(argc, argv, "FRWhd:c:l:s:a:m:r:t:o:")) != -1)
     {
         switch (ch)
         {
@@ -184,6 +253,9 @@ main(int argc, char *argv[])
             break;
         case 'W':
             options::mode = options::mode_t::single_write;
+            break;
+        case 'F':
+            options::mode = options::mode_t::file_transfer;
             break;
         case 'd':
             options::device = optarg;
@@ -251,6 +323,14 @@ main(int argc, char *argv[])
         int const address = std::strtol(argv[0], nullptr, 0);
         intmax_t value    = std::strtoimax(argv[1], nullptr, 0);
         return single_write(address, value);
+    }
+    else if (options::mode == options::mode_t::file_transfer)
+    {
+        if (options::server_id < 0 || argc < 2)
+            return usage(-1, "missing mandatory parameters for file transfer");
+
+        int const address = std::strtol(argv[0], nullptr, 0);
+        return file_transfer(address, argv[1]);
     }
 
 
