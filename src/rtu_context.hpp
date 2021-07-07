@@ -381,6 +381,22 @@ public:
               modbus_strerror(errno));
     }
 
+    void write_multiple_registers(int address,
+                                  uint16_t const *regs,
+                                  int num_regs)
+    {
+        int const api_rv =
+          modbus_write_registers(modbus_source_.get(),
+                                 address,
+                                 num_regs,
+                                 regs); // Write Multiple Registers: Code 0x10
+
+        if (api_rv != num_regs)
+            throw std::runtime_error(
+              std::string("Failed modbus_write_registers: ") +
+              modbus_strerror(errno));
+    }
+
     [[nodiscard]] auto read_random_value() const { return (*random_source_)(); }
 
     template <class F, class... Args>

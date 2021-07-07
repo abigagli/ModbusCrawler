@@ -36,7 +36,7 @@ usage(int res, std::string const &msg = "")
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
-                    <regnum>
+                    <register>
                     <regsize ={{1|2|4}{l|b} | Nr}>
 
                     |
@@ -45,7 +45,7 @@ usage(int res, std::string const &msg = "")
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
-                    <regnum>
+                    <register>
                     <value [0..65535]>
 
                     |
@@ -54,11 +54,68 @@ usage(int res, std::string const &msg = "")
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
-                    <regnum>
+                    <register>
+                    <filename>
+
+                    |
+                    -U
+                    [-d <device = /dev/ttyUSB0>]
+                    [-c <line_config ="9600:8:N:1">]
+                    [-a <answering_timeout_ms =500>]
+                    -s <server_id>
                     <filename>
                 })"
               << std::endl;
     return res;
+}
+
+std::vector<uint16_t>
+registers(std::string const &filename)
+{
+    std::ifstream ifs(filename, std::ios::binary);
+
+    if (!ifs)
+        throw std::runtime_error("invalid filename " + filename);
+
+    std::istreambuf_iterator<char> it{ifs}, ibe;
+
+    std::vector<uint16_t> content;
+    size_t bytes = 0;
+
+    enum class byte
+    {
+        low,
+        high
+    } phase = byte::high;
+
+    uint8_t high_byte;
+
+    while (it != ibe)
+    {
+        if (phase == byte::high)
+        {
+            high_byte = static_cast<uint8_t>(*it++);
+            phase     = byte::low;
+        }
+        else
+        {
+            uint16_t const low_byte = static_cast<uint8_t>(*it++);
+
+            content.push_back(
+              static_cast<uint16_t>((high_byte << 8) | low_byte));
+            phase = byte::high;
+        }
+
+        ++bytes;
+    }
+
+    if (phase == byte::low)
+        content.push_back(static_cast<uint16_t>(high_byte << 8));
+
+    LOG_S(INFO) << "read " << bytes << " from " << filename << " into "
+                << content.size() << " elements";
+
+    return content;
 }
 } // namespace
 
@@ -71,6 +128,7 @@ enum class mode_t
     single_read,
     single_write,
     file_transfer,
+    flash_update,
 };
 namespace defaults {
     mode_t mode                   = mode_t::meas_scheduler;
@@ -175,51 +233,16 @@ single_write(int address, intmax_t value)
     return 0;
 }
 
+uint32_t
+crc32(std::vector<uint16_t> const &registers)
+{
+    return 0xFEFEDADA;
+}
+
 int
 file_transfer(int address, std::string filename)
 {
-    std::ifstream ifs(filename, std::ios::binary);
-
-    if (!ifs)
-        return usage(-1, "invalid filename " + filename);
-
-    std::istreambuf_iterator<char> it{ifs}, ibe;
-
-    std::vector<uint16_t> content;
-    size_t bytes = 0;
-
-    enum class byte
-    {
-        low,
-        high
-    } phase = byte::low;
-
-    uint8_t low_byte;
-
-    while (it != ibe)
-    {
-        if (phase == byte::low)
-        {
-            low_byte = static_cast<uint8_t>(*it++);
-            phase    = byte::high;
-        }
-        else
-        {
-            uint16_t const high_byte = static_cast<uint8_t>(*it++);
-
-            content.push_back(
-              static_cast<uint16_t>((high_byte << 8) | low_byte));
-            phase = byte::low;
-        }
-
-        ++bytes;
-    }
-
-    if (phase == byte::high)
-        content.push_back(low_byte);
-
-    LOG_S(INFO) << "FILE TRANSFER read " << bytes << " for " << content.size()
-                << " registers";
+    std::vector<uint16_t> content = registers(filename);
 
     modbus::RTUContext ctx(
       options::server_id,
@@ -233,6 +256,159 @@ file_transfer(int address, std::string filename)
     return 0;
 }
 
+int
+flash_update(std::string filename)
+{
+    enum class flash_update_registers : int
+    {
+        total_len_high = 2993,
+        total_len_low  = 2994,
+        crc32_high     = 2995,
+        crc32_low      = 2996,
+        offset_high    = 2997,
+        offset_low     = 2998,
+        chunk_len      = 2999,
+        buffer         = 3000,
+        cmd            = 3128,
+    };
+
+    enum class flash_update_commands : uint16_t
+    {
+        start         = 0xE05D,
+        write_segment = 0xF1A5,
+        done          = 0xD01E,
+    };
+
+    std::vector<uint16_t> content = registers(filename);
+
+    auto const total_len_bytes = content.size() * sizeof(uint16_t);
+
+    modbus::RTUContext ctx(
+      options::server_id,
+      "Server_" + std::to_string(options::server_id),
+      modbus::SerialLine(options::device, options::line_config),
+      options::answering_time,
+      loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
+
+    uint16_t constexpr flash_line_bytes = 256;
+    auto const full_lines               = total_len_bytes / flash_line_bytes;
+
+    int constexpr modbus_regs_at_once =
+      flash_line_bytes / 2 /
+      sizeof(uint16_t); // 1/2 flash line i.e. 64 registers i.e. 128 bytes
+
+    uint32_t flash_offset = 0;
+    int buffer_offset     = static_cast<int>(flash_update_registers::buffer);
+    auto const *regs      = content.data();
+
+    LOG_S(INFO) << "Sending 'start' command";
+    ctx.write_holding_register(
+      static_cast<int>(flash_update_registers::cmd),
+      static_cast<uint16_t>(flash_update_commands::start));
+
+    for (auto flash_line = 0ULL; flash_line != full_lines; ++flash_line)
+    {
+        LOG_S(INFO) << "FLASH line " << flash_line << " @ 0x" << std::hex
+                    << flash_offset << ", REGBUFF @ 0x" << buffer_offset
+                    << std::dec << ",  " << flash_line_bytes << " bytes in 2 * "
+                    << modbus_regs_at_once << " registers";
+
+        // Send current offset inside the receiver's pre-flash-write buffer,
+        // i.e. flash_line * flash_line_bytes
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::offset_high),
+          flash_offset >> 16);
+
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::offset_low), flash_offset);
+
+        // Send the current flash_line in two modbus' multiple-register writes
+        ctx.write_multiple_registers(buffer_offset, regs, modbus_regs_at_once);
+        ctx.write_multiple_registers(buffer_offset + modbus_regs_at_once,
+                                     regs + modbus_regs_at_once,
+                                     modbus_regs_at_once);
+
+        // Send the actual bytes of the current flash line, in this case this is
+        // always a full line
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::chunk_len),
+          flash_line_bytes);
+
+        // Send the write_segment command
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::cmd),
+          static_cast<uint16_t>(flash_update_commands::write_segment));
+
+        regs += 2 * modbus_regs_at_once;
+        flash_offset += flash_line_bytes;
+    }
+
+    auto const remaining_bytes = total_len_bytes % flash_line_bytes;
+
+    if (remaining_bytes)
+    {
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::offset_high),
+          flash_offset >> 16);
+
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::offset_low), flash_offset);
+
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::chunk_len), remaining_bytes);
+
+        auto const remaining_chunks = remaining_bytes / 2 / modbus_regs_at_once;
+        auto const remaining_regs = (remaining_bytes / 2) % modbus_regs_at_once;
+
+        if (remaining_chunks)
+        {
+            LOG_S(INFO) << "FLASH remaining chunk @ 0x" << std::hex
+                        << flash_offset << ", REGBUFF @ 0x" << buffer_offset
+                        << std::dec << ",  " << modbus_regs_at_once * 2
+                        << " bytes in " << modbus_regs_at_once << " registers";
+
+            ctx.write_multiple_registers(
+              buffer_offset, regs, modbus_regs_at_once);
+
+            regs += modbus_regs_at_once;
+            buffer_offset += modbus_regs_at_once;
+        }
+
+        LOG_S(INFO) << "FLASH remaining bytes @ 0x" << std::hex << flash_offset
+                    << ", REGBUFF @ 0x" << buffer_offset << std::dec << ",  "
+                    << remaining_regs * 2 << " bytes in " << remaining_regs
+                    << " registers";
+
+        ctx.write_multiple_registers(buffer_offset, regs, remaining_regs);
+
+        // Send the write_segment command
+        ctx.write_holding_register(
+          static_cast<int>(flash_update_registers::cmd),
+          static_cast<uint16_t>(flash_update_commands::write_segment));
+    }
+    LOG_S(INFO) << "Sending total len " << total_len_bytes;
+    ctx.write_holding_register(
+      static_cast<int>(flash_update_registers::total_len_high),
+      total_len_bytes >> 16);
+    ctx.write_holding_register(
+      static_cast<int>(flash_update_registers::total_len_low), total_len_bytes);
+
+    uint32_t const checksum = crc32(content);
+
+    LOG_S(INFO) << "Sending crc32 " << std::hex << checksum << std::dec;
+    ctx.write_holding_register(
+      static_cast<int>(flash_update_registers::crc32_high), checksum >> 16);
+    ctx.write_holding_register(
+      static_cast<int>(flash_update_registers::crc32_low), checksum);
+
+    LOG_S(INFO) << "Sending 'done' command";
+    ctx.write_holding_register(
+      static_cast<int>(flash_update_registers::cmd),
+      static_cast<uint16_t>(flash_update_commands::done));
+
+    LOG_S(INFO) << "FLASH UPDATE completed";
+    return 0;
+}
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "concurrency-mt-unsafe"
@@ -244,7 +420,7 @@ main(int argc, char *argv[])
     g_prog_name = argv[0];
     optind      = 1;
     int ch;
-    while ((ch = getopt(argc, argv, "FRWhd:c:l:s:a:m:r:t:o:")) != -1)
+    while ((ch = getopt(argc, argv, "UFRWhd:c:l:s:a:m:r:t:o:")) != -1)
     {
         switch (ch)
         {
@@ -256,6 +432,9 @@ main(int argc, char *argv[])
             break;
         case 'F':
             options::mode = options::mode_t::file_transfer;
+            break;
+        case 'U':
+            options::mode = options::mode_t::flash_update;
             break;
         case 'd':
             options::device = optarg;
@@ -309,7 +488,8 @@ main(int argc, char *argv[])
     if (options::mode == options::mode_t::single_read)
     {
         if (options::server_id < 0 || argc < 2)
-            return usage(-1, "missing mandatory parameters for single read");
+            return usage(-1,
+                         "missing mandatory parameters for single_read mode");
 
         int const address   = std::strtol(argv[0], nullptr, 0);
         char const *regspec = argv[1];
@@ -318,7 +498,8 @@ main(int argc, char *argv[])
     else if (options::mode == options::mode_t::single_write)
     {
         if (options::server_id < 0 || argc < 2)
-            return usage(-1, "missing mandatory parameters for single write");
+            return usage(-1,
+                         "missing mandatory parameters for single_write mode");
 
         int const address = std::strtol(argv[0], nullptr, 0);
         intmax_t value    = std::strtoimax(argv[1], nullptr, 0);
@@ -327,10 +508,19 @@ main(int argc, char *argv[])
     else if (options::mode == options::mode_t::file_transfer)
     {
         if (options::server_id < 0 || argc < 2)
-            return usage(-1, "missing mandatory parameters for file transfer");
+            return usage(-1,
+                         "missing mandatory parameters for file_transfer mode");
 
         int const address = std::strtol(argv[0], nullptr, 0);
         return file_transfer(address, argv[1]);
+    }
+    else if (options::mode == options::mode_t::flash_update)
+    {
+        if (options::server_id < 0 || argc < 1)
+            return usage(-1,
+                         "missing mandatory parameters for flash_update mode");
+
+        return flash_update(argv[0]);
     }
 
 
