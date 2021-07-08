@@ -6,7 +6,6 @@
 #include <functional>
 #include <memory>
 #include <modbus.h>
-#include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
 #include <string>
