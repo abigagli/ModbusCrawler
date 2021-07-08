@@ -305,15 +305,16 @@ flash_update(std::string filename)
 {
     enum class flash_update_registers : int
     {
-        total_len_high = 2993,
-        total_len_low  = 2994,
-        crc32_high     = 2995,
-        crc32_low      = 2996,
-        offset_high    = 2997,
-        offset_low     = 2998,
-        chunk_len      = 2999,
-        buffer         = 3000,
-        cmd            = 3128,
+        required_image_version = 2992,
+        total_len_high         = 2993,
+        total_len_low          = 2994,
+        crc32_high             = 2995,
+        crc32_low              = 2996,
+        offset_high            = 2997,
+        offset_low             = 2998,
+        chunk_len              = 2999,
+        buffer                 = 3000,
+        cmd                    = 3128,
     };
 
     enum class flash_update_commands : uint16_t
@@ -323,17 +324,32 @@ flash_update(std::string filename)
         done          = 0xD01E,
     };
 
-    uint32_t checksum;
-    std::vector<uint16_t> content = registers(filename, &checksum);
-
-    auto const total_len_bytes = content.size() * sizeof(uint16_t);
-
     modbus::RTUContext ctx(
       options::server_id,
       "Server_" + std::to_string(options::server_id),
       modbus::SerialLine(options::device, options::line_config),
       options::answering_time,
       loguru::g_stderr_verbosity >= loguru::Verbosity_MAX);
+
+    uint16_t const required_image_version = ctx.read_holding_registers(
+      static_cast<int>(flash_update_registers::required_image_version),
+      1,
+      modbus::word_endianess::little);
+
+    LOG_S(INFO) << "Device requires fw image " << required_image_version;
+
+    filename += "_" + std::to_string(required_image_version);
+    uint32_t checksum;
+    std::vector<uint16_t> content = registers(filename, &checksum);
+
+    if (content.size() > 3)
+    {
+        uint32_t const reset_vector = (content[2] << 16) | content[3];
+        LOG_S(INFO) << "Requested image ResetHandler @" << std::hex
+                    << reset_vector << std::dec;
+    }
+
+    auto const total_len_bytes = content.size() * sizeof(uint16_t);
 
     uint16_t constexpr flash_line_bytes = 256;
     auto const full_lines               = total_len_bytes / flash_line_bytes;
