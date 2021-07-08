@@ -338,13 +338,13 @@ flash_update(std::string filename)
 
     LOG_S(INFO) << "Device requires fw image " << required_image_version;
 
-    filename += "_" + std::to_string(required_image_version);
+    filename += std::to_string(required_image_version) + ".bin";
     uint32_t checksum;
     std::vector<uint16_t> content = registers(filename, &checksum);
 
     if (content.size() > 3)
     {
-        uint32_t const reset_vector = (content[2] << 16) | content[3];
+        uint32_t const reset_vector = (content[3] << 16) | content[2];
         LOG_S(INFO) << "Requested image ResetHandler @" << std::hex
                     << reset_vector << std::dec;
     }
