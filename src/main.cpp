@@ -69,52 +69,102 @@ usage(int res, std::string const &msg = "")
     return res;
 }
 
+class CRC32
+{
+    uint32_t table[256];
+
+public:
+    CRC32()
+    {
+        uint32_t const polynomial = 0xEDB88320;
+        for (uint32_t i = 0; i < 256; i++)
+        {
+            uint32_t c = i;
+            for (size_t j = 0; j < 8; j++)
+            {
+                if (c & 1)
+                {
+                    c = polynomial ^ (c >> 1);
+                }
+                else
+                {
+                    c >>= 1;
+                }
+            }
+            table[i] = c;
+        }
+    }
+
+    uint32_t update(uint32_t initial, const void *buf, size_t len)
+    {
+        uint32_t c       = initial ^ 0xFFFFFFFF;
+        const uint8_t *u = static_cast<const uint8_t *>(buf);
+        for (size_t i = 0; i < len; ++i)
+        {
+            c = table[(c ^ u[i]) & 0xFF] ^ (c >> 8);
+        }
+        return c ^ 0xFFFFFFFF;
+    }
+
+    uint32_t update(uint32_t initial, uint8_t byte)
+    {
+        uint32_t c = initial ^ 0xFFFFFFFF;
+        c          = table[(c ^ byte) & 0xFF] ^ (c >> 8);
+        return c ^ 0xFFFFFFFF;
+    }
+};
+
+
 std::vector<uint16_t>
-registers(std::string const &filename)
+registers(std::string const &filename, uint32_t *maybe_crc = nullptr)
 {
     std::ifstream ifs(filename, std::ios::binary);
 
     if (!ifs)
         throw std::runtime_error("invalid filename " + filename);
 
+    ifs.ignore(std::numeric_limits<std::streamsize>::max());
+    auto const file_len = ifs.gcount();
+    ifs.clear();
+    ifs.seekg(0, std::ios::beg);
+
     std::istreambuf_iterator<char> it{ifs}, ibe;
 
     std::vector<uint16_t> content;
-    size_t bytes = 0;
 
-    enum class byte
-    {
-        low,
-        high
-    } phase = byte::high;
+    // Eventually we need a 4-byte aligned size
+    content.reserve(((file_len + 3) / 4) * 4);
 
-    uint8_t high_byte;
-
+    CRC32 checksum;
+    uint32_t crc_value = 0;
+    uint8_t high_byte{};
     while (it != ibe)
     {
-        if (phase == byte::high)
-        {
-            high_byte = static_cast<uint8_t>(*it++);
-            phase     = byte::low;
-        }
-        else
-        {
-            uint16_t const low_byte = static_cast<uint8_t>(*it++);
+        high_byte = static_cast<uint8_t>(*it++);
+        crc_value = checksum.update(crc_value, high_byte);
 
-            content.push_back(
-              static_cast<uint16_t>((high_byte << 8) | low_byte));
-            phase = byte::high;
-        }
+        uint8_t const low_byte = it != ibe ? static_cast<uint8_t>(*it++) : 0;
+        crc_value              = checksum.update(crc_value, low_byte);
 
-        ++bytes;
+        uint16_t regval = (high_byte << 8) | low_byte;
+
+        content.push_back(regval);
     }
 
-    if (phase == byte::low)
-        content.push_back(static_cast<uint16_t>(high_byte << 8));
+    // And now ensure the whole thing is 4-byte aligned
+    while (content.size() % 2)
+    {
+        crc_value = checksum.update(crc_value, 0);
+        crc_value = checksum.update(crc_value, 0);
+        content.push_back(0);
+    }
 
-    LOG_S(INFO) << "read " << bytes << " from " << filename << " into "
-                << content.size() << " elements";
+    LOG_S(INFO) << "read " << file_len << " bytes from " << filename << " into "
+                << content.size() << " elements. CRC32 = " << std::hex
+                << crc_value << std::dec;
 
+    if (maybe_crc)
+        *maybe_crc = crc_value;
     return content;
 }
 } // namespace
@@ -233,12 +283,6 @@ single_write(int address, intmax_t value)
     return 0;
 }
 
-uint32_t
-crc32(std::vector<uint16_t> const &registers)
-{
-    return 0xFEFEDADA;
-}
-
 int
 file_transfer(int address, std::string filename)
 {
@@ -279,7 +323,8 @@ flash_update(std::string filename)
         done          = 0xD01E,
     };
 
-    std::vector<uint16_t> content = registers(filename);
+    uint32_t checksum;
+    std::vector<uint16_t> content = registers(filename, &checksum);
 
     auto const total_len_bytes = content.size() * sizeof(uint16_t);
 
@@ -392,8 +437,6 @@ flash_update(std::string filename)
       total_len_bytes >> 16);
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::total_len_low), total_len_bytes);
-
-    uint32_t const checksum = crc32(content);
 
     LOG_S(INFO) << "Sending crc32 " << std::hex << checksum << std::dec;
     ctx.write_holding_register(
