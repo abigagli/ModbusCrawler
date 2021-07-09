@@ -9,7 +9,7 @@ set_target_properties (${APPLICATION_TARGET_NAME} PROPERTIES DEBUG_POSTFIX "D")
 
 target_include_directories (${APPLICATION_TARGET_NAME}
     PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_LIST_DIR}/..
     )
 
 target_sources (${APPLICATION_TARGET_NAME}

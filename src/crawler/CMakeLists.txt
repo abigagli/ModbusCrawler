@@ -7,10 +7,13 @@ add_executable (${APPLICATION_TARGET_NAME})
 add_dependencies(${APPLICATION_TARGET_NAME} copy_current_compile_commands)
 set_target_properties (${APPLICATION_TARGET_NAME} PROPERTIES DEBUG_POSTFIX "D")
 
+FetchContent_GetProperties(loguru)
+FetchContent_GetProperties(asio)
+
 target_include_directories (${APPLICATION_TARGET_NAME}
     PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_BINARY_DIR}/3rdParty/loguru/loguru-src
+    ${CMAKE_CURRENT_LIST_DIR}/..
+    ${loguru_SOURCE_DIR}
     )
 
 target_sources (${APPLICATION_TARGET_NAME}
@@ -21,7 +24,7 @@ target_sources (${APPLICATION_TARGET_NAME}
     meas_reporter.cpp
     json_support.cpp
     periodic_scheduler.cpp
-    ${CMAKE_BINARY_DIR}/3rdParty/loguru/loguru-src/loguru.cpp
+    ${loguru_SOURCE_DIR}/loguru.cpp
     #${CMAKE_SOURCE_DIR}/compile_commands.json #<-- Having this as a dependency will cause the custom command below to execute...
     )
 
@@ -42,7 +45,7 @@ PRIVATE
 if (USE_STANDALONE_ASIO)
     target_include_directories (${APPLICATION_TARGET_NAME}
         PRIVATE
-        ${CMAKE_BINARY_DIR}/3rdParty/asio/asio-src/include
+        ${asio_SOURCE_DIR}/include
         )
     target_compile_definitions (${APPLICATION_TARGET_NAME}
         PRIVATE

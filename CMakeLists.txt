@@ -19,7 +19,7 @@ add_custom_target(
 
 add_custom_command (
     OUTPUT ${CMAKE_SOURCE_DIR}/compile_commands.json
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different compile_commands.json ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/compile_commands.json ${CMAKE_SOURCE_DIR}
     # Since we use copy_if_different, the target of the copy (i.e. ${CMAKE_SOURCE_DIR}/compile_commands.json)
     # is a "BYPRODUCT" since its timestamp may _not_ be newer than this command dependency (i.e. the source of the copy)
     # (simply because the source compile_commands.json gets a newer timestamp, but the content is the same so it is
