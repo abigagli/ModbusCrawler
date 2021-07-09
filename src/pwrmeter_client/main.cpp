@@ -22,7 +22,7 @@ usage(int res, std::string const &msg = "")
                 [-v(erbose)]
                 {
                     -R
-                    [-d <device =/dev/ttyUSB0>]
+                    [-d <device = /dev/ttyCOM1>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
@@ -31,7 +31,7 @@ usage(int res, std::string const &msg = "")
 
                     |
                     -W
-                    [-d <device = /dev/ttyUSB0>]
+                    [-d <device = /dev/ttyCOM1>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
@@ -40,7 +40,7 @@ usage(int res, std::string const &msg = "")
 
                     |
                     -U
-                    [-d <device = /dev/ttyUSB0>]
+                    [-d <device = /dev/ttyCOM1>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
@@ -142,7 +142,7 @@ registers(std::string const &filename, uint32_t *maybe_crc = nullptr)
 
     std::clog << "read " << file_len << " bytes from " << filename << " into "
               << content.size() << " elements. CRC32 = " << std::hex
-              << crc_value << std::dec;
+              << crc_value << std::dec << '\n';
 
     if (maybe_crc)
         *maybe_crc = crc_value;
@@ -161,7 +161,7 @@ enum class mode_t
     flash_update,
 };
 namespace defaults {
-    std::string const device      = "/dev/ttyUSB0";
+    std::string const device      = "/dev/ttyCOM1";
     std::string const line_config = "9600:8:N:1";
     auto const answering_time     = 500ms;
     bool verbose                  = false;
@@ -205,7 +205,7 @@ single_read(int address, std::string regspec)
             auto const cur_addr = address + r * sizeof(uint16_t);
             std::clog << "RAW READ: " << std::setw(8) << std::hex << cur_addr
                       << ": " << std::setw(8) << registers[r] << " (dec "
-                      << std::dec << std::setw(10) << registers[r] << ")";
+                      << std::dec << std::setw(10) << registers[r] << ")\n";
         }
     }
     else
@@ -229,7 +229,7 @@ single_read(int address, std::string regspec)
         int64_t const val =
           ctx.read_holding_registers(address, regsize, word_endianess);
 
-        std::clog << "SINGLE READ REGISTER " << address << ": " << val;
+        std::clog << "SINGLE READ REGISTER " << address << ": " << val << '\n';
     }
     return 0;
 }
@@ -248,11 +248,11 @@ single_write(int address, intmax_t value)
       options::verbose);
 
     ctx.write_holding_register(address, value);
-    std::clog << "SINGLE WRITE REGISTER " << address << ": " << value;
+    std::clog << "SINGLE WRITE REGISTER " << address << ": " << value << '\n';
     return 0;
 }
 
-int
+void
 flash_update(std::string filename)
 {
     enum class flash_update_registers : int
@@ -288,7 +288,7 @@ flash_update(std::string filename)
       1,
       modbus::word_endianess::little);
 
-    std::clog << "Device requires fw image " << required_image_version;
+    std::clog << "Device requires fw image " << required_image_version << '\n';
 
     filename += std::to_string(required_image_version) + ".bin";
     uint32_t checksum;
@@ -298,7 +298,7 @@ flash_update(std::string filename)
     {
         uint32_t const reset_vector = (content[3] << 16) | content[2];
         std::clog << "Requested image ResetHandler @" << std::hex
-                  << reset_vector << std::dec;
+                  << reset_vector << std::dec << '\n';
     }
 
     auto const total_len_bytes = content.size() * sizeof(uint16_t);
@@ -314,7 +314,7 @@ flash_update(std::string filename)
     int buffer_offset     = static_cast<int>(flash_update_registers::buffer);
     auto const *regs      = content.data();
 
-    std::clog << "Sending 'start' command";
+    std::clog << "Sending 'start' command\n";
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::cmd),
       static_cast<uint16_t>(flash_update_commands::start));
@@ -324,7 +324,7 @@ flash_update(std::string filename)
         std::clog << "FLASH line " << flash_line << " @ 0x" << std::hex
                   << flash_offset << ", REGBUFF @ 0x" << buffer_offset
                   << std::dec << ",  " << flash_line_bytes << " bytes in 2 * "
-                  << modbus_regs_at_once << " registers";
+                  << modbus_regs_at_once << " registers\n";
 
         // Send current offset inside the receiver's pre-flash-write buffer,
         // i.e. flash_line * flash_line_bytes
@@ -378,7 +378,7 @@ flash_update(std::string filename)
             std::clog << "FLASH remaining chunk @ 0x" << std::hex
                       << flash_offset << ", REGBUFF @ 0x" << buffer_offset
                       << std::dec << ",  " << modbus_regs_at_once * 2
-                      << " bytes in " << modbus_regs_at_once << " registers";
+                      << " bytes in " << modbus_regs_at_once << " registers\n";
 
             ctx.write_multiple_registers(
               buffer_offset, regs, modbus_regs_at_once);
@@ -390,7 +390,7 @@ flash_update(std::string filename)
         std::clog << "FLASH remaining bytes @ 0x" << std::hex << flash_offset
                   << ", REGBUFF @ 0x" << buffer_offset << std::dec << ",  "
                   << remaining_regs * 2 << " bytes in " << remaining_regs
-                  << " registers";
+                  << " registers\n";
 
         ctx.write_multiple_registers(buffer_offset, regs, remaining_regs);
 
@@ -399,26 +399,25 @@ flash_update(std::string filename)
           static_cast<int>(flash_update_registers::cmd),
           static_cast<uint16_t>(flash_update_commands::write_segment));
     }
-    std::clog << "Sending total len " << total_len_bytes;
+    std::clog << "Sending total len " << total_len_bytes << '\n';
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::total_len_high),
       total_len_bytes >> 16);
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::total_len_low), total_len_bytes);
 
-    std::clog << "Sending crc32 " << std::hex << checksum << std::dec;
+    std::clog << "Sending crc32 " << std::hex << checksum << std::dec << '\n';
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::crc32_high), checksum >> 16);
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::crc32_low), checksum);
 
-    std::clog << "Sending 'done' command";
+    std::clog << "Sending 'done' command\n";
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::cmd),
       static_cast<uint16_t>(flash_update_commands::done));
 
-    std::clog << "FLASH UPDATE completed";
-    return 0;
+    std::clog << "FLASH UPDATE completed\n";
 }
 
 #pragma clang diagnostic push
@@ -495,7 +494,8 @@ main(int argc, char *argv[])
             return usage(-1,
                          "missing mandatory parameters for flash_update mode");
 
-        return flash_update(argv[0]);
+        flash_update(argv[0]);
+        return 0;
     }
     else
         return usage(-1);

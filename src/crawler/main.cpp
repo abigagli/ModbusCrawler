@@ -32,7 +32,7 @@ usage(int res, std::string const &msg = "")
 
                     |
                     -R
-                    [-d <device =/dev/ttyUSB0>]
+                    [-d <device = /dev/ttyCOM1>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
@@ -41,7 +41,7 @@ usage(int res, std::string const &msg = "")
 
                     |
                     -W
-                    [-d <device = /dev/ttyUSB0>]
+                    [-d <device = /dev/ttyCOM1>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
@@ -50,7 +50,7 @@ usage(int res, std::string const &msg = "")
 
                     |
                     -F
-                    [-d <device = /dev/ttyUSB0>]
+                    [-d <device = /dev/ttyCOM1>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
@@ -59,7 +59,7 @@ usage(int res, std::string const &msg = "")
 
                     |
                     -U
-                    [-d <device = /dev/ttyUSB0>]
+                    [-d <device = /dev/ttyCOM1>]
                     [-c <line_config ="9600:8:N:1">]
                     [-a <answering_timeout_ms =500>]
                     -s <server_id>
@@ -182,7 +182,7 @@ enum class mode_t
 };
 namespace defaults {
     mode_t mode                   = mode_t::meas_scheduler;
-    std::string const device      = "/dev/ttyUSB0";
+    std::string const device      = "/dev/ttyCOM1";
     std::string const line_config = "9600:8:N:1";
     std::string const log_path    = "";
     auto const answering_time     = 500ms;
@@ -283,7 +283,7 @@ single_write(int address, intmax_t value)
     return 0;
 }
 
-int
+void
 file_transfer(int address, std::string filename)
 {
     std::vector<uint16_t> content = registers(filename);
@@ -297,10 +297,9 @@ file_transfer(int address, std::string filename)
 
     ctx.write_multiple_registers(address, content);
     LOG_S(INFO) << "FILE TRANSFER completed";
-    return 0;
 }
 
-int
+void
 flash_update(std::string filename)
 {
     enum class flash_update_registers : int
@@ -466,7 +465,6 @@ flash_update(std::string filename)
       static_cast<uint16_t>(flash_update_commands::done));
 
     LOG_S(INFO) << "FLASH UPDATE completed";
-    return 0;
 }
 
 #pragma clang diagnostic push
@@ -571,7 +569,8 @@ main(int argc, char *argv[])
                          "missing mandatory parameters for file_transfer mode");
 
         int const address = std::strtol(argv[0], nullptr, 0);
-        return file_transfer(address, argv[1]);
+        file_transfer(address, argv[1]);
+        return 0;
     }
     else if (options::mode == options::mode_t::flash_update)
     {
@@ -579,7 +578,8 @@ main(int argc, char *argv[])
             return usage(-1,
                          "missing mandatory parameters for flash_update mode");
 
-        return flash_update(argv[0]);
+        flash_update(argv[0]);
+        return 0;
     }
 
 
