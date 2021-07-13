@@ -540,6 +540,16 @@ main(int argc, char *argv[])
           options::log_path.c_str(), log_file, sizeof(log_file));
         loguru::add_file(
           log_file, loguru::FileMode::Truncate, loguru::Verbosity_MAX);
+
+        std::string current_symlink = options::log_path + "/current_log";
+        int rv                      = unlink(current_symlink.c_str());
+        rv = symlink(log_file, current_symlink.c_str());
+
+        if (!rv)
+        {
+            LOG_S(INFO) << "Current log file symlinked from "
+                        << current_symlink;
+        }
     }
 
     if (options::mode == options::mode_t::single_read)
