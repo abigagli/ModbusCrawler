@@ -52,7 +52,7 @@ public:
     }
 
     template <class S>
-    std::enable_if_t<std::is_signed_v<S>, suval&> operator=(S sv)
+    std::enable_if_t<std::is_signed<S>::value, suval&> operator=(S sv)
     {
         sval = sv;
         type = Tag::SIGNED;
@@ -60,7 +60,7 @@ public:
     }
 
     template <class U>
-    std::enable_if_t<std::is_unsigned_v<U>, suval&> operator=(U uv)
+    std::enable_if_t<std::is_unsigned<U>::value, suval&> operator=(U uv)
     {
         uval = uv;
         type = Tag::UNSIGNED;
