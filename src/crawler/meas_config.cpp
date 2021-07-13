@@ -4,25 +4,28 @@
 #include "modbus_types.h"
 
 #include <algorithm>
-#include <cinttypes>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 
 using json = nlohmann::json;
 
 namespace modbus {
 NLOHMANN_JSON_SERIALIZE_ENUM(word_endianess,
                              {
+                               {word_endianess::INVALID, nullptr},
                                {word_endianess::little, "little"},
                                {word_endianess::big, "big"},
                              })
 
 NLOHMANN_JSON_SERIALIZE_ENUM(regtype,
                              {
+                               {regtype::INVALID, nullptr},
                                {regtype::holding, "holding"},
                                {regtype::input, "input"},
                              })
 NLOHMANN_JSON_SERIALIZE_ENUM(value_type,
                              {
+                               {value_type::INVALID, nullptr},
                                {value_type::INT16, "INT16"},
                                {value_type::UINT16, "UINT16"},
                                {value_type::INT32, "INT32"},
@@ -105,42 +108,48 @@ to_json(json &j, source_register_t const &s)
       {"reg_type", s.reg_type},
       {"value_type", s.value_type},
       {"scale_factor", s.scale_factor},
-      {"min_read_value", s.min_read_value.as<uintmax_t>()},
-      {"max_read_value", s.min_read_value.as<uintmax_t>()},
+      {"min_read_value", s.min_read_value.as_signed()},
+      {"max_read_value", s.max_read_value.as_signed()},
     };
 }
 
 void
 from_json(json const &j, source_register_t &s)
 {
-    s.address      = j.at("address");
-    s.endianess    = j.at("endianess");
-    s.reg_type     = j.at("reg_type");
-    s.value_type   = j.at("value_type");
+    s.address   = j.at("address");
+    s.endianess = j.at("endianess");
+    modbus::check_enum(s.endianess);
+    s.reg_type = j.at("reg_type");
+    modbus::check_enum(s.reg_type);
+    s.value_type = j.at("value_type");
+    modbus::check_enum(s.value_type);
     s.scale_factor = j.at("scale_factor");
+
+    std::string const type_str = j.at("value_type");
 
     auto min_read_value_it = j.find("min_read_value");
     if (min_read_value_it != j.end())
     {
-        uintmax_t const unsigned_min =
-          min_read_value_it->is_number()
-            ? min_read_value_it->get<uintmax_t>()
-            : std::strtoumax(
-                min_read_value_it->get<std::string>().c_str(), nullptr, 0);
-        s.min_read_value = {unsigned_min, s.value_type};
+        s.min_read_value.assign_from_string(
+          min_read_value_it->get<std::string>(), s.value_type);
+    }
+    else
+    {
+        s.min_read_value.assign_min(s.value_type);
     }
 
     auto max_read_value_it = j.find("max_read_value");
     if (max_read_value_it != j.end())
     {
-        uintmax_t const unsigned_max =
-          max_read_value_it->is_number()
-            ? max_read_value_it->get<uintmax_t>()
-            : std::strtoumax(
-                max_read_value_it->get<std::string>().c_str(), nullptr, 0);
-        s.max_read_value = {unsigned_max, s.value_type};
+        s.max_read_value.assign_from_string(
+          max_read_value_it->get<std::string>(), s.value_type);
+    }
+    else
+    {
+        s.max_read_value.assign_max(s.value_type);
     }
 }
+
 
 void
 to_json(json &j, measure_t const &m)

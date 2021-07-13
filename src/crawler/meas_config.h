@@ -2,7 +2,9 @@
 
 #include "modbus_types.h"
 
+#include <cassert>
 #include <chrono>
+#include <cinttypes>
 #include <fstream>
 #include <map>
 #include <string>
@@ -18,110 +20,139 @@ using std::experimental::optional;
 #    endif
 #endif
 
-
 namespace measure {
-template <class T, class = void>
-struct safe_signed;
-
-struct safe_signed_tag
+class suval
 {
-    struct min
-    {};
-    struct max
-    {};
-};
-template <class S>
-class safe_signed<S, typename std::enable_if<std::is_signed<S>::value>::type>:
-  private safe_signed_tag
-{
-    S svalue;
-
-    template <class TARGET>
-    bool in_range_impl() const
+    enum class Tag
     {
-        return svalue >= static_cast<S>(std::numeric_limits<TARGET>::min()) &&
-               svalue <= static_cast<S>(std::numeric_limits<TARGET>::max());
+        SIGNED,
+        UNSIGNED
+    } type;
+    union
+    {
+        intmax_t sval;
+        uintmax_t uval;
+    };
+
+public:
+    suval() : type{Tag::SIGNED}, sval{0} {}
+
+    intmax_t as_signed() const
+    {
+        if (type != Tag::SIGNED)
+            throw std::runtime_error("Current value is not SIGNED");
+        return sval;
     }
 
-    bool value_in_range(modbus::value_type vt)
+    uintmax_t as_unsigned() const
+    {
+        if (type != Tag::UNSIGNED)
+            throw std::runtime_error("Current value is not UNSIGNED");
+        return uval;
+    }
+
+    template <class S>
+    std::enable_if_t<std::is_signed_v<S>, suval&> operator=(S sv)
+    {
+        sval = sv;
+        type = Tag::SIGNED;
+        return *this;
+    }
+
+    template <class U>
+    std::enable_if_t<std::is_unsigned_v<U>, suval&> operator=(U uv)
+    {
+        uval = uv;
+        type = Tag::UNSIGNED;
+        return *this;
+    }
+
+    suval& assign_min(modbus::value_type vt)
     {
         switch (vt)
         {
         case modbus::value_type::INT16:
-            return in_range_impl<int16_t>();
+            return operator=(std::numeric_limits<int16_t>::min());
         case modbus::value_type::UINT16:
-            return in_range_impl<uint16_t>();
+            return operator=(std::numeric_limits<uint16_t>::min());
         case modbus::value_type::INT32:
-            return in_range_impl<int32_t>();
+            return operator=(std::numeric_limits<int32_t>::min());
         case modbus::value_type::UINT32:
-            return in_range_impl<uint32_t>();
+            return operator=(std::numeric_limits<uint32_t>::min());
         case modbus::value_type::INT64:
-            return in_range_impl<int64_t>();
+            return operator=(std::numeric_limits<int64_t>::min());
         case modbus::value_type::UINT64:
-            return in_range_impl<uint64_t>();
+            return operator=(std::numeric_limits<uint64_t>::min());
+        default:
+            assert(!"Unreachable switch case");
         }
     }
 
-public:
-    safe_signed(min) : svalue(std::numeric_limits<S>::min()) {}
-
-    safe_signed(max) : svalue(std::numeric_limits<S>::max()) {}
-
-    // SFINAE-constrained constructor: can only construct from the exact same
-    // type as S
-    template <
-      class S2,
-      typename std::enable_if<std::is_same<S2, S>::value, int>::type = 0>
-    safe_signed(S2 s, modbus::value_type vt) : svalue(s)
+    suval& assign_max(modbus::value_type vt)
     {
-        if (!value_in_range(vt))
-            throw std::overflow_error(std::to_string(svalue));
+        switch (vt)
+        {
+        case modbus::value_type::INT16:
+            return operator=(std::numeric_limits<int16_t>::max());
+        case modbus::value_type::UINT16:
+            return operator=(std::numeric_limits<uint16_t>::max());
+        case modbus::value_type::INT32:
+            return operator=(std::numeric_limits<int32_t>::max());
+        case modbus::value_type::UINT32:
+            return operator=(std::numeric_limits<uint32_t>::max());
+        case modbus::value_type::INT64:
+            return operator=(std::numeric_limits<int64_t>::max());
+        case modbus::value_type::UINT64:
+            return operator=(std::numeric_limits<uint64_t>::max());
+        default:
+            assert(!"Unreachable switch case");
+        }
     }
 
-    // SFINAE-constrained constructor: can only construct from the unsigned
-    // correspondent of S
-    template <class U,
-              typename std::enable_if<
-                std::is_same<U, typename std::make_unsigned<S>::type>::value,
-                int>::type = 0>
-    safe_signed(U uvalue, modbus::value_type vt)
+    suval& assign_from_string(std::string const& s, modbus::value_type vt)
     {
-        if (uvalue <= std::numeric_limits<S>::max())
+        if (modbus::value_signed(vt))
         {
-            // Easy path: we're in signed value's positive range, just cast
-            // it
-            svalue = static_cast<S>(uvalue);
+            intmax_t const signed_value = std::strtoimax(s.c_str(), nullptr, 0);
+
+            if (errno == ERANGE || !modbus::value_in_range(signed_value, vt))
+                throw std::range_error(s + " OOR for " + to_string(vt));
+
+            return operator=(signed_value);
         }
         else
         {
-            // On the most common systems:
-            // unsigned val -->
-            //                  !(val <= INT_MAX) --> val >= INT_MIN.
-            // (keep in mind INT_MIN gets converted to unsigned and hence
-            // represents the mid-positive-range) But then, (val >= INT_MIN)
-            // -->
-            //                  (val - INT_MIN) <= INT_MAX, i.e.
-            // (val - INT_MIN) can be safely represented as signed
+            // In the unsigned case, negative values would be wrapped-around
+            // while parsing with strtoumax. Such wrap-around would be
+            // detectable for all types with strictly less bits than uintmax_t
+            // as a -N value would be wrapped into 2 ^ 64 - N, which would be
+            // greater than the max value of any type with less than 64 bits and
+            // hence could only be generated by a negative value being
+            // wrapped-around. But for types with the same number of bits as
+            // uintmax_t (i.e. UINT64) the wrap around is non-detectable, as the
+            // wrapped-around value is always still in the allowed range for
+            // UINT64, so we just check for negative values at the string level,
+            // before attempting to parse, to be able to detect negative values
+            // for all supported types
+            auto const first_nonspace = s.find_first_not_of(' ', 0);
+            uintmax_t unsigned_value;
+            if (first_nonspace != std::string::npos && s[first_nonspace] == '-')
+            {
+                errno = ERANGE;
+            }
+            else
+            {
+                unsigned_value = std::strtoumax(s.c_str(), nullptr, 0);
+            }
 
-            svalue = // (int)(val - INT_MIN) + INT_MIN
-              static_cast<S>(uvalue -
-                             static_cast<U>(std::numeric_limits<S>::min())) +
-              std::numeric_limits<S>::min();
+            if (errno == ERANGE || !modbus::value_in_range(unsigned_value, vt))
+                throw std::range_error(s + " OOR for " + to_string(vt));
+
+            return operator=(unsigned_value);
         }
-        if (!value_in_range(vt))
-            throw std::overflow_error(std::to_string(svalue));
-    }
-
-    template <class T,
-              typename std::enable_if<
-                std::is_same<T, S>::value ||
-                  std::is_same<T, typename std::make_unsigned<S>::type>::value,
-                int>::type = 0>
-    T as() const noexcept
-    {
-        return static_cast<T>(svalue);
     }
 };
+
 
 struct modbus_server_t
 {
@@ -142,27 +173,8 @@ struct source_register_t
     modbus::regtype reg_type;
     modbus::value_type value_type;
     double scale_factor;
-    // PROBLEM: We need to store the min/max values we are accepting when
-    // reading from a device, and depending on the signedness of the read value,
-    // we would need to accordingly store the thresholds as signed/unsigned. A
-    // variant would do the trick, but the current gcc cross-compiler for arm
-    // doesn't support variants, so here's the logic:
-    // These threshold values are read from the configuration as uint64_t to
-    // allow maximum positive range and if they are signed, we just leverage
-    // the fact that signed->unsigned is a well-defined
-    // wrap-around-based conversion (e.g. if the value is -100,
-    // it will be read as (unsigned)(-100)).
-    // But then they are stored as _signed_ int64_t (through
-    // a "safe conversion" that avoids the non-portable, implementation-defined
-    // unsigned->signed conversion). This is to optimize
-    // the "runtime" comparisons with values read from the devices, because
-    // when such values are unsigned we can just cast back again the thresholds
-    // to unsigned (which is again the well-defined signed->unsigned conversion
-    // we used when reading from the configuration). If we has stored them as
-    // unsigned, we would then have to perform the "safe conversion" at runtime
-    // each time we needed to compare with signed values read from the devices
-    safe_signed<intmax_t> min_read_value{safe_signed_tag::min{}};
-    safe_signed<intmax_t> max_read_value{safe_signed_tag::max{}};
+    suval min_read_value;
+    suval max_read_value;
 };
 struct measure_t
 {
@@ -191,6 +203,6 @@ using server_id_t         = int;
 using configuration_map_t = std::map<server_id_t, descriptor_t>;
 
 configuration_map_t
-read_config(std::string const &measconfig_file);
+read_config(std::string const& measconfig_file);
 
 } // namespace measure
