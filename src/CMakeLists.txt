@@ -12,7 +12,8 @@ PUBLIC
 )
 target_compile_definitions (common
 PUBLIC
-    $<$<CONFIG:Release,RelWithDebInfo>:DOCTEST_CONFIG_DISABLE>
+#    $<$<CONFIG:Release,RelWithDebInfo>:DOCTEST_CONFIG_DISABLE>
+$<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:DOCTEST_CONFIG_DISABLE>
 )
 
 target_link_options (common
