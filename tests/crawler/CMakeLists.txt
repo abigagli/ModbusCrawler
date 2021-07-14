@@ -5,6 +5,7 @@ PRIVATE
     ${CMAKE_DL_LIBS}
     OBJECTS::crawler
     OBJECTS::common
+    Threads::Threads
 )
 
 add_test(NAME crawler
