@@ -1,5 +1,5 @@
 #pragma once
-#include "modbus_types.h"
+#include "modbus_types.hpp"
 
 #include <cassert>
 #include <chrono>

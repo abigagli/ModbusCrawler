@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
@@ -121,4 +122,13 @@ check_enum(E e)
     if (static_cast<int>(e) == 0)
         throw std::runtime_error("Invalid enum");
 }
+
+
+struct rtu_parameters
+{
+    int slave_id;
+    std::string serial_device;
+    std::string serial_config;
+    std::chrono::milliseconds answering_time;
+};
 } // namespace modbus

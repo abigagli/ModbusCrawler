@@ -1,7 +1,6 @@
 #include "meas_config.h"
 
 #include "json_support.h"
-#include "modbus_types.h"
 
 #include <algorithm>
 #include <nlohmann/json.hpp>

@@ -15,6 +15,7 @@ target_include_directories (${APPLICATION_TARGET_NAME}
 target_sources (${APPLICATION_TARGET_NAME}
     PRIVATE
     main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../modbus_ops.cpp
     #${CMAKE_SOURCE_DIR}/compile_commands.json #<-- Having this as a dependency will cause the custom command below to execute...
     )
 
@@ -22,6 +23,7 @@ target_compile_options (${APPLICATION_TARGET_NAME}
 PRIVATE
     #$<$<CONFIG:Debug>:-fno-omit-frame-pointer -fsanitize=address -fsanitize=signed-integer-overflow -fsanitize=unsigned-integer-overflow>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer -fsanitize=address -fsanitize=signed-integer-overflow>
+    -UUSE_LOGURU
 )
 
 target_link_options (${APPLICATION_TARGET_NAME}
