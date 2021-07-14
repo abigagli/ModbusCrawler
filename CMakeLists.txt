@@ -31,7 +31,7 @@ add_custom_command (
     # the command doesn't actually execute unless there's a new/different source compile_commands.json
     COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_SOURCE_DIR}/compile_commands.json
     DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-    COMMENT "Ensuring current compile_commands.json is in root folder"
+    COMMENT "Ensuring current compile_commands.json is copied to root folder"
     )
-add_subdirectory(src/crawler)
-add_subdirectory(src/pwrmeter_client)
+
+add_subdirectory(src)
