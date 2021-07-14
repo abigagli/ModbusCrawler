@@ -2,8 +2,10 @@
 
 #if defined(USE_LOGURU)
 #    include <loguru.hpp>
+#    define EOL
 #else
 #    define LOG_S(x) std::clog
+#    define EOL << std::endl;
 #endif
 #include "rtu_context.hpp"
 
@@ -104,7 +106,7 @@ registers_from_file(std::string const &filename, uint32_t *maybe_crc = nullptr)
 
     LOG_S(INFO) << "read " << file_len << " bytes from " << filename << " into "
                 << content.size() << " elements. CRC32 = " << std::hex
-                << crc_value << std::dec;
+                << crc_value << std::dec EOL;
 
     if (maybe_crc)
         *maybe_crc = crc_value;
@@ -151,7 +153,7 @@ single_read(modbus::rtu_parameters const &rp,
             auto const cur_addr = address + r * sizeof(uint16_t);
             LOG_S(INFO) << "RAW READ: " << std::setw(8) << std::hex << cur_addr
                         << ": " << std::setw(8) << registers[r] << " (dec "
-                        << std::dec << std::setw(10) << registers[r] << ")";
+                        << std::dec << std::setw(10) << registers[r] << ")" EOL;
         }
     }
     else
@@ -164,7 +166,7 @@ single_read(modbus::rtu_parameters const &rp,
         int64_t const val =
           ctx.read_holding_registers(address, regsize, word_endianess);
 
-        LOG_S(INFO) << "SINGLE READ REGISTER " << address << ": " << val;
+        LOG_S(INFO) << "SINGLE READ REGISTER " << address << ": " << val EOL;
     }
 }
 
@@ -185,7 +187,7 @@ single_write(modbus::rtu_parameters const &rp,
       verbose);
 
     ctx.write_holding_register(address, value);
-    LOG_S(INFO) << "SINGLE WRITE REGISTER " << address << ": " << value;
+    LOG_S(INFO) << "SINGLE WRITE REGISTER " << address << ": " << value EOL;
 }
 
 void
@@ -204,7 +206,7 @@ file_transfer(modbus::rtu_parameters const &rp,
       verbose);
 
     ctx.write_multiple_registers(address, content);
-    LOG_S(INFO) << "FILE TRANSFER completed";
+    LOG_S(INFO) << "FILE TRANSFER completed" EOL;
 }
 
 void
@@ -245,7 +247,7 @@ flash_update(modbus::rtu_parameters const &rp,
       1,
       modbus::word_endianess::little);
 
-    LOG_S(INFO) << "Device requires fw image " << required_image_version;
+    LOG_S(INFO) << "Device requires fw image " << required_image_version EOL;
 
     filename += std::to_string(required_image_version) + ".bin";
     uint32_t checksum;
@@ -255,7 +257,7 @@ flash_update(modbus::rtu_parameters const &rp,
     {
         uint32_t const reset_vector = (content[3] << 16) | content[2];
         LOG_S(INFO) << "Requested image ResetHandler @" << std::hex
-                    << reset_vector << std::dec;
+                    << reset_vector << std::dec EOL;
     }
 
     auto const total_len_bytes = content.size() * sizeof(uint16_t);
@@ -271,7 +273,7 @@ flash_update(modbus::rtu_parameters const &rp,
     int buffer_offset     = static_cast<int>(flash_update_registers::buffer);
     auto const *regs      = content.data();
 
-    LOG_S(INFO) << "Sending 'start' command";
+    LOG_S(INFO) << "Sending 'start' command" EOL;
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::cmd),
       static_cast<uint16_t>(flash_update_commands::start));
@@ -281,7 +283,7 @@ flash_update(modbus::rtu_parameters const &rp,
         LOG_S(INFO) << "FLASH line " << flash_line << " @ 0x" << std::hex
                     << flash_offset << ", REGBUFF @ 0x" << buffer_offset
                     << std::dec << ",  " << flash_line_bytes << " bytes in 2 * "
-                    << modbus_regs_at_once << " registers";
+                    << modbus_regs_at_once << " registers" EOL;
 
         // Send current offset inside the receiver's pre-flash-write buffer,
         // i.e. flash_line * flash_line_bytes
@@ -335,7 +337,8 @@ flash_update(modbus::rtu_parameters const &rp,
             LOG_S(INFO) << "FLASH remaining chunk @ 0x" << std::hex
                         << flash_offset << ", REGBUFF @ 0x" << buffer_offset
                         << std::dec << ",  " << modbus_regs_at_once * 2
-                        << " bytes in " << modbus_regs_at_once << " registers";
+                        << " bytes in " << modbus_regs_at_once
+                        << " registers" EOL;
 
             ctx.write_multiple_registers(
               buffer_offset, regs, modbus_regs_at_once);
@@ -347,7 +350,7 @@ flash_update(modbus::rtu_parameters const &rp,
         LOG_S(INFO) << "FLASH remaining bytes @ 0x" << std::hex << flash_offset
                     << ", REGBUFF @ 0x" << buffer_offset << std::dec << ",  "
                     << remaining_regs * 2 << " bytes in " << remaining_regs
-                    << " registers";
+                    << " registers" EOL;
 
         ctx.write_multiple_registers(buffer_offset, regs, remaining_regs);
 
@@ -356,25 +359,25 @@ flash_update(modbus::rtu_parameters const &rp,
           static_cast<int>(flash_update_registers::cmd),
           static_cast<uint16_t>(flash_update_commands::write_segment));
     }
-    LOG_S(INFO) << "Sending total len " << total_len_bytes;
+    LOG_S(INFO) << "Sending total len " << total_len_bytes EOL;
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::total_len_high),
       total_len_bytes >> 16);
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::total_len_low), total_len_bytes);
 
-    LOG_S(INFO) << "Sending crc32 " << std::hex << checksum << std::dec;
+    LOG_S(INFO) << "Sending crc32 " << std::hex << checksum << std::dec EOL;
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::crc32_high), checksum >> 16);
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::crc32_low), checksum);
 
-    LOG_S(INFO) << "Sending 'done' command";
+    LOG_S(INFO) << "Sending 'done' command" EOL;
     ctx.write_holding_register(
       static_cast<int>(flash_update_registers::cmd),
       static_cast<uint16_t>(flash_update_commands::done));
 
-    LOG_S(INFO) << "FLASH UPDATE completed";
+    LOG_S(INFO) << "FLASH UPDATE completed" EOL;
 }
 
 } // namespace modbus
