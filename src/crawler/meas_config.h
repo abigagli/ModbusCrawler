@@ -86,6 +86,7 @@ public:
         default:
             assert(!"Unreachable switch case");
         }
+        __builtin_unreachable();
     }
 
     suval& assign_max(modbus::value_type vt)
@@ -107,6 +108,7 @@ public:
         default:
             assert(!"Unreachable switch case");
         }
+        __builtin_unreachable();
     }
 
     suval& assign_from_string(std::string const& s, modbus::value_type vt)

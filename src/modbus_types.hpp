@@ -50,6 +50,8 @@ to_string(value_type vt)
     default:
         assert(!"Unreachable switch case");
     }
+
+    __builtin_unreachable();
 }
 
 enum class word_endianess
@@ -88,6 +90,7 @@ value_in_range(T value, value_type vt)
     default:
         assert(!"Unreachable switch case");
     }
+    __builtin_unreachable();
 }
 inline int
 reg_size(value_type vt)
@@ -106,6 +109,7 @@ reg_size(value_type vt)
     default:
         assert(!"Unreachable switch case");
     }
+    __builtin_unreachable();
 }
 
 enum class regtype
