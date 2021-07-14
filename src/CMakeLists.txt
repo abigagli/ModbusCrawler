@@ -10,6 +10,11 @@ PUBLIC
     #$<$<CONFIG:Debug>:-fno-omit-frame-pointer -fsanitize=address -fsanitize=signed-integer-overflow -fsanitize=unsigned-integer-overflow>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer -fsanitize=address -fsanitize=signed-integer-overflow>
 )
+target_compile_definitions (common
+PUBLIC
+    $<$<CONFIG:Release,RelWithDebInfo>:DOCTEST_CONFIG_DISABLE>
+)
+
 target_link_options (common
 PUBLIC
     #$<$<CONFIG:Debug>:-fsanitize=address -fsanitize=signed-integer-overflow -fsanitize=unsigned-integer-overflow>

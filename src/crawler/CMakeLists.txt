@@ -46,6 +46,8 @@ else (USE_STANDALONE_ASIO)
         Boost::headers)
 endif (USE_STANDALONE_ASIO)
 
+add_library(OBJECTS::crawler ALIAS crawler)
+
 add_executable (${APPLICATION_TARGET_NAME})
 set_target_properties (${APPLICATION_TARGET_NAME} PROPERTIES DEBUG_POSTFIX "D")
 
@@ -57,7 +59,7 @@ target_sources (${APPLICATION_TARGET_NAME}
 target_link_libraries (${APPLICATION_TARGET_NAME}
     PRIVATE
     ${CMAKE_DL_LIBS}
-    crawler
+    OBJECTS::crawler
     OBJECTS::common
     Threads::Threads) #<<--- Omitting this makes linking fail on Linux: See https://discourse.cmake.org/t/boost-process-target-doesnt-exist-for-thread-linking/2113
 

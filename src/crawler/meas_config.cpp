@@ -1,5 +1,6 @@
 #include "meas_config.h"
 
+#include "doctest.h"
 #include "json_support.h"
 
 #include <algorithm>
@@ -243,6 +244,11 @@ read_config(std::string const &measconfig_file)
     }
 
     return measure_descriptors;
+}
+
+TEST_CASE("testing the factorial function")
+{
+    CHECK_THROWS(read_config("bla"));
 }
 
 } // namespace measure

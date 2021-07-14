@@ -1,3 +1,5 @@
+#define DOCTEST_CONFIG_IMPLEMENT
+#include "doctest.h"
 #include "meas_config.h"
 #include "meas_executor.h"
 #include "meas_reporter.h"
