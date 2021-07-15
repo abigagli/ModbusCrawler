@@ -1,8 +1,5 @@
 set (APPLICATION_TARGET_NAME mbcrawler)
 
-# See comment below fow why we need to add Threads as an explicit dep...
-find_package (Threads)
-
 FetchContent_GetProperties(loguru)
 
 add_library (crawler

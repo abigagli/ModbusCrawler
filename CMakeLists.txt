@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(MODBUS LANGUAGES CXX VERSION 1.0)
+
+# Don't enable testing unless we're the top-level project
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     include (CTest)
 endif()
+
+# Application targets on linux need to explicitly link with pthreads...
+find_package (Threads)
 
 include(GNUInstallDirs)
 include(FetchContent)

@@ -1,8 +1,5 @@
 set (APPLICATION_TARGET_NAME pwrc)
 
-# See comment below fow why we need to add Threads as an explicit dep...
-find_package (Threads)
-
 add_executable (${APPLICATION_TARGET_NAME})
 set_target_properties (${APPLICATION_TARGET_NAME} PROPERTIES DEBUG_POSTFIX "D")
 
