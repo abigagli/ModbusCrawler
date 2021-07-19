@@ -7,7 +7,7 @@
 #    define LOG_S(x) std::clog
 #    define EOL << std::endl;
 #endif
-#include "rtu_context.hpp"
+#include "modbus_slave.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -134,10 +134,11 @@ single_read(modbus::rtu_parameters const &rp,
     if (last_char != 'r' && regsize != 1 && regsize != 2 && regsize != 4)
         throw std::invalid_argument("regsize must be 1, 2 or 4");
 
-    modbus::RTUContext ctx(
+    modbus::slave rtu_slave(
+      compiler::undeduced<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
-      modbus::SerialLine(rp.serial_device, rp.serial_config),
+      modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
       rp.answering_time,
       verbose);
 
@@ -146,7 +147,7 @@ single_read(modbus::rtu_parameters const &rp,
         // Raw read
         int const num_regs = std::strtol(regspec.c_str(), nullptr, 0);
         std::vector<uint16_t> registers =
-          ctx.read_holding_registers(address, num_regs);
+          rtu_slave.read_holding_registers(address, num_regs);
 
         for (auto r = 0ULL; r != registers.size(); ++r)
         {
@@ -164,7 +165,7 @@ single_read(modbus::rtu_parameters const &rp,
                                            : modbus::word_endianess::big;
 
         int64_t const val =
-          ctx.read_holding_registers(address, regsize, word_endianess);
+          rtu_slave.read_holding_registers(address, regsize, word_endianess);
 
         LOG_S(INFO) << "SINGLE READ REGISTER " << address << ": " << val EOL;
     }
@@ -179,14 +180,15 @@ single_write(modbus::rtu_parameters const &rp,
     if (value < 0 || value > std::numeric_limits<uint16_t>::max())
         throw std::invalid_argument("invalid value: must be [0..65535]");
 
-    modbus::RTUContext ctx(
+    modbus::slave rtu_slave(
+      compiler::undeduced<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
-      modbus::SerialLine(rp.serial_device, rp.serial_config),
+      modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
       rp.answering_time,
       verbose);
 
-    ctx.write_holding_register(address, value);
+    rtu_slave.write_holding_register(address, value);
     LOG_S(INFO) << "SINGLE WRITE REGISTER " << address << ": " << value EOL;
 }
 
@@ -198,14 +200,15 @@ file_transfer(modbus::rtu_parameters const &rp,
 {
     std::vector<uint16_t> content = registers_from_file(filename);
 
-    modbus::RTUContext ctx(
+    modbus::slave rtu_slave(
+      compiler::undeduced<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
-      modbus::SerialLine(rp.serial_device, rp.serial_config),
+      modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
       rp.answering_time,
       verbose);
 
-    ctx.write_multiple_registers(address, content);
+    rtu_slave.write_multiple_registers(address, content);
     LOG_S(INFO) << "FILE TRANSFER completed" EOL;
 }
 
@@ -235,14 +238,15 @@ flash_update(modbus::rtu_parameters const &rp,
         done          = 0xD01E,
     };
 
-    modbus::RTUContext ctx(
+    modbus::slave rtu_slave(
+      compiler::undeduced<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
-      modbus::SerialLine(rp.serial_device, rp.serial_config),
+      modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
       rp.answering_time,
       verbose);
 
-    uint16_t const required_image_version = ctx.read_holding_registers(
+    uint16_t const required_image_version = rtu_slave.read_holding_registers(
       static_cast<int>(flash_update_registers::required_image_version),
       1,
       modbus::word_endianess::little);
@@ -274,7 +278,7 @@ flash_update(modbus::rtu_parameters const &rp,
     auto const *regs      = content.data();
 
     LOG_S(INFO) << "Sending 'start' command" EOL;
-    ctx.write_holding_register(
+    rtu_slave.write_holding_register(
       static_cast<int>(flash_update_registers::cmd),
       static_cast<uint16_t>(flash_update_commands::start));
 
@@ -287,27 +291,28 @@ flash_update(modbus::rtu_parameters const &rp,
 
         // Send current offset inside the receiver's pre-flash-write buffer,
         // i.e. flash_line * flash_line_bytes
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::offset_high),
           flash_offset >> 16);
 
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::offset_low), flash_offset);
 
         // Send the current flash_line in two modbus' multiple-register writes
-        ctx.write_multiple_registers(buffer_offset, regs, modbus_regs_at_once);
-        ctx.write_multiple_registers(buffer_offset + modbus_regs_at_once,
-                                     regs + modbus_regs_at_once,
-                                     modbus_regs_at_once);
+        rtu_slave.write_multiple_registers(
+          buffer_offset, regs, modbus_regs_at_once);
+        rtu_slave.write_multiple_registers(buffer_offset + modbus_regs_at_once,
+                                           regs + modbus_regs_at_once,
+                                           modbus_regs_at_once);
 
         // Send the actual bytes of the current flash line, in this case this is
         // always a full line
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::chunk_len),
           flash_line_bytes);
 
         // Send the write_segment command
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::cmd),
           static_cast<uint16_t>(flash_update_commands::write_segment));
 
@@ -319,14 +324,14 @@ flash_update(modbus::rtu_parameters const &rp,
 
     if (remaining_bytes)
     {
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::offset_high),
           flash_offset >> 16);
 
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::offset_low), flash_offset);
 
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::chunk_len), remaining_bytes);
 
         auto const remaining_chunks = remaining_bytes / 2 / modbus_regs_at_once;
@@ -340,7 +345,7 @@ flash_update(modbus::rtu_parameters const &rp,
                         << " bytes in " << modbus_regs_at_once
                         << " registers" EOL;
 
-            ctx.write_multiple_registers(
+            rtu_slave.write_multiple_registers(
               buffer_offset, regs, modbus_regs_at_once);
 
             regs += modbus_regs_at_once;
@@ -352,28 +357,28 @@ flash_update(modbus::rtu_parameters const &rp,
                     << remaining_regs * 2 << " bytes in " << remaining_regs
                     << " registers" EOL;
 
-        ctx.write_multiple_registers(buffer_offset, regs, remaining_regs);
+        rtu_slave.write_multiple_registers(buffer_offset, regs, remaining_regs);
 
         // Send the write_segment command
-        ctx.write_holding_register(
+        rtu_slave.write_holding_register(
           static_cast<int>(flash_update_registers::cmd),
           static_cast<uint16_t>(flash_update_commands::write_segment));
     }
     LOG_S(INFO) << "Sending total len " << total_len_bytes EOL;
-    ctx.write_holding_register(
+    rtu_slave.write_holding_register(
       static_cast<int>(flash_update_registers::total_len_high),
       total_len_bytes >> 16);
-    ctx.write_holding_register(
+    rtu_slave.write_holding_register(
       static_cast<int>(flash_update_registers::total_len_low), total_len_bytes);
 
     LOG_S(INFO) << "Sending crc32 " << std::hex << checksum << std::dec EOL;
-    ctx.write_holding_register(
+    rtu_slave.write_holding_register(
       static_cast<int>(flash_update_registers::crc32_high), checksum >> 16);
-    ctx.write_holding_register(
+    rtu_slave.write_holding_register(
       static_cast<int>(flash_update_registers::crc32_low), checksum);
 
     LOG_S(INFO) << "Sending 'done' command" EOL;
-    ctx.write_holding_register(
+    rtu_slave.write_holding_register(
       static_cast<int>(flash_update_registers::cmd),
       static_cast<uint16_t>(flash_update_commands::done));
 

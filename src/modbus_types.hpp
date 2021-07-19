@@ -19,6 +19,8 @@ namespace detail {
     }
 } // namespace detail
 
+using slave_id_t = int;
+
 enum class value_type
 {
     INVALID = 0,
@@ -123,7 +125,7 @@ template <class E>
 void
 check_enum(E e)
 {
-    if (static_cast<int>(e) == 0)
+    if (e == E::INVALID)
         throw std::runtime_error("Invalid enum");
 }
 

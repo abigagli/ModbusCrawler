@@ -1,21 +1,20 @@
 #pragma once
+#include "compiler.hpp"
 #include "modbus_types.hpp"
 
-#include <cassert>
-#include <chrono>
-#include <functional>
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <modbus.h>
 #include <random>
 #include <sstream>
 #include <string>
-#include <tuple>
+#include <type_traits>
 #include <vector>
 
 namespace modbus {
-
-static_assert(sizeof(intmax_t) >= sizeof(int64_t));
-namespace detailm {
+namespace detail {
     struct word_be_tag
     {};
     struct word_le_tag
@@ -89,86 +88,206 @@ namespace detailm {
         return val;
     }
 
+} // namespace detail
+
+class slave_concept
+{
+    slave_id_t id_;
+    std::string name_;
+
+public:
+    [[nodiscard]] slave_id_t id() const noexcept { return id_; }
+    [[nodiscard]] std::string const &name() const noexcept { return name_; }
+
+    slave_concept(slave_id_t id, std::string name)
+      : id_(id), name_(std::move(name))
+    {}
+
+    virtual ~slave_concept() = default;
+
+    virtual intmax_t read_input_registers(int address,
+                                          int regsize,
+                                          word_endianess endianess)  = 0;
+    virtual std::vector<uint16_t> read_input_registers(int address,
+                                                       int num_regs) = 0;
+
+
+    virtual intmax_t read_holding_registers(int address,
+                                            int regsize,
+                                            word_endianess endianess)  = 0;
+    virtual std::vector<uint16_t> read_holding_registers(int address,
+                                                         int num_regs) = 0;
+
+    // Non-pure, as we don't require these to be implemented
+    virtual void write_holding_register(int address, uint16_t value) {}
+
+    virtual void write_multiple_registers(
+      int address,
+      std::vector<uint16_t> const &registers)
+    {}
+
+    virtual void write_multiple_registers(int address,
+                                          uint16_t const *regs,
+                                          int num_regs)
+    {}
+};
+
+class slave
+{
+    std::unique_ptr<slave_concept> c;
+
+public:
+    template <class M, class... T>
+    explicit slave(compiler::undeduced<M>, T &&...args)
+      : c(new M(std::forward<T>(args)...))
+    {}
+
+    [[nodiscard]] slave_id_t id() const noexcept { return c->id(); }
+    [[nodiscard]] std::string const &name() const noexcept { return c->name(); }
+
+    intmax_t read_input_registers(int address,
+                                  int regsize,
+                                  word_endianess endianess)
+    {
+        return c->read_input_registers(address, regsize, endianess);
+    }
+    std::vector<uint16_t> read_input_registers(int address, int num_regs)
+    {
+        return c->read_input_registers(address, num_regs);
+    }
+
+
+    intmax_t read_holding_registers(int address,
+                                    int regsize,
+                                    word_endianess endianess)
+    {
+        return c->read_holding_registers(address, regsize, endianess);
+    }
+    std::vector<uint16_t> read_holding_registers(int address, int num_regs)
+    {
+        return c->read_holding_registers(address, num_regs);
+    }
+
+    void write_holding_register(int address, uint16_t value)
+    {
+        c->write_holding_register(address, value);
+    }
+
+    void write_multiple_registers(int address,
+                                  std::vector<uint16_t> const &registers)
+    {
+        c->write_multiple_registers(address, registers);
+    }
+
+    void write_multiple_registers(int address,
+                                  uint16_t const *regs,
+                                  int num_regs)
+    {
+        c->write_multiple_registers(address, regs, num_regs);
+    }
+};
+
+class RandomSlave: public slave_concept
+{
+public:
     template <class T>
-    class RandomSource
+    class random_source
     {
         std::random_device r;
         std::normal_distribution<T> d;
         std::default_random_engine engine;
 
     public:
-        RandomSource(T mean, T stdev) : d(mean, stdev), engine(r()) {}
+        random_source(T mean, T stdev) : d(mean, stdev), engine(r()) {}
         T operator()() { return d(engine); }
     };
-} // namespace detailm
-
-class SerialLine
-{
-    friend class RTUContext;
-    std::string device_;
-    int bps_;
-    int data_bits_;
-    char parity_;
-    int stop_bits_;
-
-    static auto unpack_line_config(std::istringstream iss)
+    class random_params
     {
-        std::vector<std::string> parts;
-        std::string elem;
-        while (std::getline(iss, elem, ':'))
+        friend class RandomSlave;
+        double mean_;
+        double stdev_;
+
+        static auto unpack_random_config(std::istringstream iss)
         {
-            parts.push_back(elem);
+            std::vector<std::string> parts;
+            std::string elem;
+            while (std::getline(iss, elem, ':'))
+            {
+                parts.push_back(elem);
+            }
+
+            if (parts.size() != 2)
+                throw std::invalid_argument("Invalid random config: " +
+                                            iss.str());
+
+            return std::tuple<double, double>{std::stod(parts[0]),
+                                              std::stod(parts[1])};
         }
 
-        if (parts.size() != 4)
-            throw std::invalid_argument("Invalid line config: " + iss.str());
+    public:
+        explicit random_params(std::string const &random_config)
+        {
+            std::tie(mean_, stdev_) =
+              unpack_random_config(std::istringstream(random_config));
+        }
+    };
 
-        return std::tuple<int, int, char, int>{std::stoi(parts[0]),
-                                               std::stoi(parts[1]),
-                                               parts[2][0],
-                                               std::stoi(parts[3])};
+    std::map<int, random_source<double>> fake_registers_;
+
+    RandomSlave(slave_id_t server_id,
+                std::string server_name,
+                std::map<int, random_params> const &fake_regs_config,
+                bool verbose = false)
+      : slave_concept(server_id, std::move(server_name))
+    {
+        for (auto const &fr: fake_regs_config)
+            fake_registers_.try_emplace(
+              fr.first, fr.second.mean_, fr.second.stdev_);
     }
 
-public:
-    SerialLine(std::string device, std::string const &line_config)
-      : device_(std::move(device))
+    intmax_t read_input_registers(int address, int, word_endianess) override
     {
-        std::tie(bps_, data_bits_, parity_, stop_bits_) =
-          unpack_line_config(std::istringstream(line_config));
+        auto where = fake_registers_.find(address);
+        if (where == std::end(fake_registers_))
+            throw std::runtime_error(
+              "no random source configured for address " +
+              std::to_string(address));
+        return where->second();
+    }
+    std::vector<uint16_t> read_input_registers(int address,
+                                               int num_regs) override
+    {
+        std::vector<uint16_t> res;
+        res.reserve(num_regs);
+
+        auto const regsize_dontcare        = 0;
+        auto const word_endianess_dontcare = word_endianess::little;
+
+        for (auto i = 0; i != num_regs; ++i)
+        {
+            res.push_back(read_input_registers(
+              address + i, regsize_dontcare, word_endianess_dontcare));
+        }
+
+        return res;
+    }
+
+    intmax_t read_holding_registers(int address, int, word_endianess) override
+    {
+        int const regsize_dontcare         = 0;
+        auto const word_endianess_dontcare = word_endianess::little;
+
+        return read_input_registers(
+          address, regsize_dontcare, word_endianess_dontcare);
+    }
+    std::vector<uint16_t> read_holding_registers(int address,
+                                                 int num_regs) override
+    {
+        return read_input_registers(address, num_regs);
     }
 };
 
-class RandomParams
-{
-    friend class RTUContext;
-    double mean_;
-    double stdev_;
-
-    static auto unpack_random_config(std::istringstream iss)
-    {
-        std::vector<std::string> parts;
-        std::string elem;
-        while (std::getline(iss, elem, ':'))
-        {
-            parts.push_back(elem);
-        }
-
-        if (parts.size() != 2)
-            throw std::invalid_argument("Invalid random config: " + iss.str());
-
-        return std::tuple<double, double>{std::stod(parts[0]),
-                                          std::stod(parts[1])};
-    }
-
-public:
-    explicit RandomParams(std::string const &random_config)
-    {
-        std::tie(mean_, stdev_) =
-          unpack_random_config(std::istringstream(random_config));
-    }
-};
-
-class RTUContext
+class RTUSlave: public slave_concept
 {
     struct ctx_deleter
     {
@@ -179,42 +298,52 @@ class RTUContext
         }
     };
 
-    int modbus_id_;
-    std::string server_name_;
-
-
     std::unique_ptr<modbus_t, ctx_deleter> modbus_source_;
-    std::unique_ptr<detailm::RandomSource<double>> random_source_;
-
-    RTUContext(int server_id, std::string server_name)
-      : modbus_id_(server_id), server_name_(std::move(server_name))
-    {}
 
 public:
-    [[nodiscard]] std::string const &name() const noexcept
+    class serial_line
     {
-        return server_name_;
-    }
+        friend class RTUSlave;
+        std::string device_;
+        int bps_;
+        int data_bits_;
+        char parity_;
+        int stop_bits_;
 
-    [[nodiscard]] int id() const noexcept { return modbus_id_; }
+        static auto unpack_line_config(std::istringstream iss)
+        {
+            std::vector<std::string> parts;
+            std::string elem;
+            while (std::getline(iss, elem, ':'))
+            {
+                parts.push_back(elem);
+            }
 
-    RTUContext(int server_id,
-               std::string server_name,
-               RandomParams const &random_params,
-               bool verbose = false)
-      : RTUContext(server_id, std::move(server_name))
-    {
-        random_source_.reset(new decltype(random_source_)::element_type(
-          random_params.mean_, random_params.stdev_));
-    }
+            if (parts.size() != 4)
+                throw std::invalid_argument("Invalid line config: " +
+                                            iss.str());
 
+            return std::tuple<int, int, char, int>{std::stoi(parts[0]),
+                                                   std::stoi(parts[1]),
+                                                   parts[2][0],
+                                                   std::stoi(parts[3])};
+        }
 
-    RTUContext(int server_id,
-               std::string server_name,
-               SerialLine const &serial_line,
-               std::chrono::milliseconds const &answering_time,
-               bool verbose = false)
-      : RTUContext(server_id, std::move(server_name))
+    public:
+        serial_line(std::string device, std::string const &line_config)
+          : device_(std::move(device))
+        {
+            std::tie(bps_, data_bits_, parity_, stop_bits_) =
+              unpack_line_config(std::istringstream(line_config));
+        }
+    };
+
+    RTUSlave(slave_id_t server_id,
+             std::string server_name,
+             serial_line const &serial_line,
+             std::chrono::milliseconds const &answering_time,
+             bool verbose = false)
+      : slave_concept(server_id, std::move(server_name))
     {
         modbus_source_.reset(modbus_new_rtu(serial_line.device_.c_str(),
                                             serial_line.bps_,
@@ -250,9 +379,9 @@ public:
 
     intmax_t read_input_registers(int address,
                                   int regsize,
-                                  word_endianess endianess)
+                                  word_endianess endianess) override
     {
-        if (!detailm::regsize_supported(regsize))
+        if (!detail::regsize_supported(regsize))
             throw std::invalid_argument("Invalid regsize: " +
                                         std::to_string(regsize));
 
@@ -269,15 +398,15 @@ public:
               modbus_strerror(errno));
 
         return endianess == word_endianess::little
-                 ? to_val(regs, regsize, detailm::word_le_tag{})
-                 : to_val(regs, regsize, detailm::word_be_tag{});
+                 ? to_val(regs, regsize, detail::word_le_tag{})
+                 : to_val(regs, regsize, detail::word_be_tag{});
     }
 
     intmax_t read_holding_registers(int address,
                                     int regsize,
-                                    word_endianess endianess)
+                                    word_endianess endianess) override
     {
-        if (!detailm::regsize_supported(regsize))
+        if (!detail::regsize_supported(regsize))
             throw std::invalid_argument("Invalid regsize: " +
                                         std::to_string(regsize));
 
@@ -293,11 +422,12 @@ public:
               modbus_strerror(errno));
 
         return endianess == word_endianess::little
-                 ? to_val(regs, regsize, detailm::word_le_tag{})
-                 : to_val(regs, regsize, detailm::word_be_tag{});
+                 ? to_val(regs, regsize, detail::word_le_tag{})
+                 : to_val(regs, regsize, detail::word_be_tag{});
     }
 
-    std::vector<uint16_t> read_input_registers(int address, int regsize)
+    std::vector<uint16_t> read_input_registers(int address,
+                                               int regsize) override
     {
         std::vector<uint16_t> registers(regsize);
         int api_rv = modbus_read_input_registers(
@@ -314,7 +444,8 @@ public:
         return registers;
     }
 
-    std::vector<uint16_t> read_holding_registers(int address, int regsize)
+    std::vector<uint16_t> read_holding_registers(int address,
+                                                 int regsize) override
     {
         std::vector<uint16_t> registers(regsize);
         int api_rv = modbus_read_registers(
@@ -332,7 +463,7 @@ public:
     }
 
 
-    void write_holding_register(int address, uint16_t value)
+    void write_holding_register(int address, uint16_t value) override
     {
         int api_rv =
           modbus_write_register(modbus_source_.get(),
@@ -345,8 +476,9 @@ public:
               modbus_strerror(errno));
     }
 
-    void write_multiple_registers(int address,
-                                  std::vector<uint16_t> const &registers)
+    void write_multiple_registers(
+      int address,
+      std::vector<uint16_t> const &registers) override
     {
         auto const chunks    = registers.size() / MODBUS_MAX_WRITE_REGISTERS;
         auto const remaining = registers.size() % MODBUS_MAX_WRITE_REGISTERS;
@@ -382,7 +514,7 @@ public:
 
     void write_multiple_registers(int address,
                                   uint16_t const *regs,
-                                  int num_regs)
+                                  int num_regs) override
     {
         int const api_rv =
           modbus_write_registers(modbus_source_.get(),
@@ -395,20 +527,6 @@ public:
               std::string("Failed modbus_write_registers: ") +
               modbus_strerror(errno));
     }
-
-    [[nodiscard]] auto read_random_value() const { return (*random_source_)(); }
-
-    template <class F, class... Args>
-    auto native_call(F &&callable, Args &&...args)
-    {
-        return std::invoke(std::forward<F>(callable),
-                           modbus_source_.get(),
-                           std::forward<Args>(args)...);
-    }
-
-    [[nodiscard]] modbus_t *native_handle() const noexcept
-    {
-        return modbus_source_.get();
-    }
 };
+
 } // namespace modbus

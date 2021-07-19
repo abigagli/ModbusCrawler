@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+/*
 #if defined(__has_include)
 #    if __has_include(<optional>)
 #        include <optional>
@@ -19,6 +20,7 @@ using std::optional;
 using std::experimental::optional;
 #    endif
 #endif
+*/
 
 namespace measure {
 class suval
@@ -174,9 +176,12 @@ struct source_register_t
     modbus::word_endianess endianess;
     modbus::regtype reg_type;
     modbus::value_type value_type;
-    double scale_factor;
     suval min_read_value;
     suval max_read_value;
+
+
+    double scale_factor         = 1.0;
+    std::string random_mean_dev = "";
 };
 struct measure_t
 {
@@ -187,12 +192,10 @@ struct measure_t
     // model object
     std::chrono::seconds sampling_period = std::chrono::seconds::zero();
 
-    // These are not present when using a random source for testing
-    optional<source_register_t> source;
-
     bool enabled            = true;
     bool accumulating       = false;
     bool report_raw_samples = false;
+    source_register_t source;
 };
 
 struct descriptor_t
@@ -201,8 +204,7 @@ struct descriptor_t
     std::vector<measure_t> measures;
 };
 
-using server_id_t         = int;
-using configuration_map_t = std::map<server_id_t, descriptor_t>;
+using configuration_map_t = std::map<modbus::slave_id_t, descriptor_t>;
 
 configuration_map_t
 read_config(std::string const& measconfig_file);

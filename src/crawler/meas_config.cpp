@@ -63,31 +63,20 @@ from_json(json const &j, modbus_server_t &s)
 
     auto serial_device_it = j.find("serial_device");
     if (serial_device_it != j.end()) // A real modbus source
-    {
         serial_device_it->get_to(s.serial_device);
 
-        // Required fields
-        j.at("modbus_id").get_to(s.modbus_id);
-        j.at("name").get_to(s.name);
+    // Required fields
+    j.at("modbus_id").get_to(s.modbus_id);
+    j.at("name").get_to(s.name);
 
-        // "Optional" fields, if they are missing, a default value will be used
-        auto const lc_it = j.find("line_config");
-        if (lc_it != j.end())
-            lc_it->get_to(s.line_config);
+    // "Optional" fields, if they are missing, a default value will be used
+    auto const lc_it = j.find("line_config");
+    if (lc_it != j.end())
+        lc_it->get_to(s.line_config);
 
-        auto const at_it = j.find("answering_time_ms");
-        if (at_it != j.end())
-            at_it->get_to(s.answering_time);
-    }
-    else // This is a for-testing random source
-    {
-        // Hard code to some self-explanatory name...
-        s.name = "RANDOM";
-
-        // The only required fields
-        j.at("modbus_id").get_to(s.modbus_id);
-        j.at("line_config").get_to(s.line_config); // Encodes MEAN:STDEV
-    }
+    auto const at_it = j.find("answering_time_ms");
+    if (at_it != j.end())
+        at_it->get_to(s.answering_time);
 }
 
 // NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(source_register_t,
@@ -110,6 +99,7 @@ to_json(json &j, source_register_t const &s)
       {"scale_factor", s.scale_factor},
       {"min_read_value", s.min_read_value.as_signed()},
       {"max_read_value", s.max_read_value.as_signed()},
+      {"random_mean_dev", s.random_mean_dev},
     };
 }
 
@@ -123,9 +113,10 @@ from_json(json const &j, source_register_t &s)
     modbus::check_enum(s.reg_type);
     s.value_type = j.at("value_type");
     modbus::check_enum(s.value_type);
-    s.scale_factor = j.at("scale_factor");
 
-    std::string const type_str = j.at("value_type");
+    auto scale_factor_it = j.find("scale_factor");
+    if (scale_factor_it != j.end())
+        scale_factor_it->get_to(s.scale_factor);
 
     auto min_read_value_it = j.find("min_read_value");
     if (min_read_value_it != j.end())
@@ -148,6 +139,10 @@ from_json(json const &j, source_register_t &s)
     {
         s.max_read_value.assign_max(s.value_type);
     }
+
+    auto random_mean_dev_it = j.find("random_mean_dev");
+    if (random_mean_dev_it != j.end())
+        random_mean_dev_it->get_to(s.random_mean_dev);
 }
 
 
@@ -160,12 +155,8 @@ to_json(json &j, measure_t const &m)
       {"sampling_period", m.sampling_period},
       {"accumulating", m.accumulating},
       {"report_raw_samples", m.report_raw_samples},
+      {"source", m.source},
     };
-
-    if (m.source)
-    {
-        j["source"] = m.source.value();
-    }
 }
 
 void
@@ -176,13 +167,6 @@ from_json(json const &j, measure_t &m)
     auto sampling_period_it = j.find("sampling_period");
     if (sampling_period_it != j.end())
         sampling_period_it->get_to(m.sampling_period);
-
-    auto source_it = j.find("source");
-    if (source_it != j.end())
-    {
-        // Use assignment as ->get_to doesn't work easily with optionals
-        m.source = source_it->get<source_register_t>();
-    }
 
     auto enabled_it = j.find("enabled");
     if (enabled_it != j.end())
@@ -195,6 +179,8 @@ from_json(json const &j, measure_t &m)
     auto report_raw_it = j.find("report_raw_samples");
     if (report_raw_it != j.end())
         report_raw_it->get_to(m.report_raw_samples);
+
+    j.at("source").get_to(m.source);
 }
 
 
@@ -207,7 +193,7 @@ read_config(std::string const &measconfig_file)
     json j;
     ifs >> j;
 
-    std::map<server_id_t, descriptor_t> measure_descriptors;
+    configuration_map_t measure_descriptors;
 
     for (auto &desc: j.get<std::vector<descriptor_t>>())
     {
