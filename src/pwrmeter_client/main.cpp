@@ -1,4 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT
+#define DOCTEST_CONFIG_NO_UNPREFIXED_OPTIONS
 #include "doctest.h"
 #include "modbus_ops.h"
 
@@ -94,7 +95,18 @@ int
 main(int argc, char *argv[])
 {
     g_prog_name = argv[0];
-    optind      = 1;
+
+    doctest::Context context;
+    // Defaults
+    context.setOption("no-breaks", true);
+    context.setOption("sort", "name");
+    context.applyCommandLine(argc, argv);
+    // Overrides
+    auto const test_res = context.run();
+    if (context.shouldExit())
+        return test_res;
+
+    optind = 1;
     int ch;
     while ((ch = getopt(argc, argv, "vURWd:c:s:a:h")) != -1)
     {

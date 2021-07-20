@@ -1,4 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT
+#define DOCTEST_CONFIG_NO_UNPREFIXED_OPTIONS
 #include "doctest.h"
 #include "meas_config.h"
 #include "meas_executor.h"
@@ -128,6 +129,17 @@ int
 main(int argc, char *argv[])
 {
     g_prog_name = argv[0];
+
+    doctest::Context context;
+    // Defaults
+    context.setOption("no-breaks", true);
+    context.setOption("sort", "name");
+    context.applyCommandLine(argc, argv);
+    // Overrides
+    auto const test_res = context.run();
+    if (context.shouldExit())
+        return test_res;
+
     loguru::init(argc, argv);
 
     optind = 1;
