@@ -1,5 +1,9 @@
 
-add_library (common OBJECT modbus_ops.cpp)
+add_library (common
+OBJECT
+    modbus_ops.cpp
+)
+
 add_dependencies(common copy_current_compile_commands)
 target_include_directories(common
 PUBLIC

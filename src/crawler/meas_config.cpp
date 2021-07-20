@@ -232,9 +232,9 @@ read_config(std::string const &measconfig_file)
     return measure_descriptors;
 }
 
+} // namespace measure
+
 TEST_CASE("invalid config must throw")
 {
-    CHECK_THROWS(read_config("bla"));
+    CHECK_THROWS(measure::read_config("bla"));
 }
-
-} // namespace measure

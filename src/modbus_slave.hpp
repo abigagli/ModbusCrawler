@@ -530,3 +530,22 @@ public:
 };
 
 } // namespace modbus
+
+#if defined(DOCTEST_LIBRARY_INCLUDED)
+TEST_CASE("Random Slave Should respect params")
+{
+    std::map<int, modbus::RandomSlave::random_params> random_params{
+      {1, modbus::RandomSlave::random_params("2000:100")}};
+
+    modbus::slave s(compiler::undeduced<modbus::RandomSlave>{},
+                    500,
+                    "Testing Slave",
+                    random_params,
+                    false);
+    auto val = s.read_holding_registers(1, 1, modbus::word_endianess::little);
+
+    CAPTURE(val);
+    bool const in_range = (val >= 2000 - 100) && (val <= 2000 + 100);
+    CHECK(in_range);
+}
+#endif

@@ -1,3 +1,5 @@
+#define DOCTEST_CONFIG_IMPLEMENT
+#include "doctest.h"
 #include "modbus_ops.h"
 
 #include <chrono>

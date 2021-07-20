@@ -14,6 +14,7 @@ OBJECT
 
 target_include_directories (crawler
 PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}
     ${loguru_SOURCE_DIR}
     )
 
