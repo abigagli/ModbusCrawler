@@ -1,5 +1,4 @@
 #pragma once
-#include "compiler.hpp"
 #include "modbus_types.hpp"
 
 #include <cstddef>
@@ -137,8 +136,12 @@ class slave
     std::unique_ptr<slave_concept> c;
 
 public:
+    template <class T>
+    struct model_type
+    {};
+
     template <class M, class... T>
-    explicit slave(compiler::undeduced<M>, T &&...args)
+    explicit slave(model_type<M>, T &&...args)
       : c(new M(std::forward<T>(args)...))
     {}
 
@@ -537,7 +540,7 @@ TEST_CASE("Random Slave Should respect params")
     std::map<int, modbus::RandomSlave::random_params> random_params{
       {1, modbus::RandomSlave::random_params("2000:100")}};
 
-    modbus::slave s(compiler::undeduced<modbus::RandomSlave>{},
+    modbus::slave s(modbus::slave::model_type<modbus::RandomSlave>{},
                     500,
                     "Testing Slave",
                     random_params,

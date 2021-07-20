@@ -53,7 +53,7 @@ public:
                       // Key
                       server_config.modbus_id,
                       // Args for RANDOM Slave
-                      compiler::undeduced<modbus::RandomSlave>{},
+                      modbus::slave::model_type<modbus::RandomSlave>{},
                       server_config.modbus_id,
                       server_config.name,
                       random_params,
@@ -67,7 +67,7 @@ public:
                       // Key
                       server_config.modbus_id,
                       // Args for MODBUS Slave
-                      compiler::undeduced<modbus::RTUSlave>{},
+                      modbus::slave::model_type<modbus::RTUSlave>{},
                       server_config.modbus_id,
                       server_config.name,
                       modbus::RTUSlave::serial_line(server_config.serial_device,

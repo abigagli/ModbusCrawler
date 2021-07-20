@@ -135,7 +135,7 @@ single_read(modbus::rtu_parameters const &rp,
         throw std::invalid_argument("regsize must be 1, 2 or 4");
 
     modbus::slave rtu_slave(
-      compiler::undeduced<modbus::RTUSlave>{},
+      modbus::slave::model_type<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
       modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
@@ -181,7 +181,7 @@ single_write(modbus::rtu_parameters const &rp,
         throw std::invalid_argument("invalid value: must be [0..65535]");
 
     modbus::slave rtu_slave(
-      compiler::undeduced<modbus::RTUSlave>{},
+      modbus::slave::model_type<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
       modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
@@ -201,7 +201,7 @@ file_transfer(modbus::rtu_parameters const &rp,
     std::vector<uint16_t> content = registers_from_file(filename);
 
     modbus::slave rtu_slave(
-      compiler::undeduced<modbus::RTUSlave>{},
+      modbus::slave::model_type<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
       modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
@@ -239,7 +239,7 @@ flash_update(modbus::rtu_parameters const &rp,
     };
 
     modbus::slave rtu_slave(
-      compiler::undeduced<modbus::RTUSlave>{},
+      modbus::slave::model_type<modbus::RTUSlave>{},
       rp.slave_id,
       "Server_" + std::to_string(rp.slave_id),
       modbus::RTUSlave::serial_line(rp.serial_device, rp.serial_config),
